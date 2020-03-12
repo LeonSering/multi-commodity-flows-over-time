@@ -27,15 +27,15 @@ def read_files(networkFile, inflowFile):
     :return: MultiFlow object
     """
     network = load_graph(networkFile)
-    multiFlow = MultiFlow(network)
+    mf = MultiFlow(network)
     with open(inflowFile, 'r') as fRead:
         for line in fRead:
             line = line.strip()
             rate, startTime, endTime, path = line.split(" ")
-            path = path.split(",")
-            multiFlow.add_commodity(path, startTime, endTime, rate)
+            path = tuple(path.split(","))
+            mf.add_commodity(path, startTime, endTime, rate)
 
-    return MultiFlow
+    return mf
 
 
 
@@ -51,4 +51,5 @@ networkFile = args.networkFile
 inflowFile = args.inflowFile
 
 # Main
-multiFlow = read_files(networkFile, inflowFile)
+mf = read_files(networkFile, inflowFile)
+mf.compute()
