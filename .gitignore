@@ -136,3 +136,5 @@ dmypy.json
 .idea/modules.xml
 .idea/multi-commodity-flows-over-time.iml
 .idea/vcs.xml
+
+/examples/
