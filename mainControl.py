@@ -29,11 +29,16 @@ def read_files(networkFile, inflowFile):
     network = load_graph(networkFile)
     mf = MultiFlow(network)
     with open(inflowFile, 'r') as fRead:
+        firstLine = True
         for line in fRead:
-            line = line.strip()
-            rate, startTime, endTime, path = line.split(" ")
-            path = tuple(path.split(","))
-            mf.add_commodity(path, startTime, endTime, rate)
+            if firstLine:
+                firstLine = False
+            else:
+                line = line.strip()
+                rate, interval, path = line.split()
+                startTime, endTime = interval.split(",")
+                path = tuple(path.split(","))
+                mf.add_commodity(path, startTime, endTime, rate)
 
     return mf
 

@@ -25,6 +25,13 @@ class MultiFlow:
 
 
     def compute(self):
+        """The priority heap maintained works as follows:
+            - entries of the form (time, node)
+            - sorted by min(time) // the lower time, the higher priority
+            - if (t, v) is in the heap, that means we know outflow rates of all incoming edges into v and inflow rates
+            of all outgoing edges of v up to time t.
+        """
+
         # Get the minimal start time, this is the time up to which we know everything
         initialTime = min(self.timeCommodityDict.keys())[0]
         # Init priority heap
