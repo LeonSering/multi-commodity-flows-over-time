@@ -27,6 +27,60 @@ class MultiFlow:
         self.bOut = {edge:OrderedDict() for edge in self.network.edges} # b^-_e
         self.spillback = {node:OrderedDict() for node in self.network.nodes}   # c_v
 
+    def dictInSort(self, OD, newValues):
+        """
+        Update OrderedDict OD by valList suitable for adding a flow over time
+        :param OD: OrderedDict where keys are of the form (startTime, endTime) and values are flow rates s.t.
+        for (s, t): r before (s', t'):r' we have s <= t <= s' <= t'
+        :param newValues: List of values (s,t,r) that need to be added to previous dict, i.e. by adding rates at times
+        """
+        if type(newValues) is tuple:
+            newValues = [newValues]
+        newValues = sorted(newValues)
+        keyValList = [(time[0], time[1], OD[time]) for time in OD]
+        for t_0, t_1, rate in newValues:
+            if len(keyValList) == 0:
+                # Just add
+                keyValList.append((t_0, t_1, rate))
+            else:
+                staticL = list(keyValList)
+                idx = 0
+                idxShift = 0
+                while idx < len(staticL):
+                    t_l, t_u, r = staticL[idx]
+                    if t_0 == t_u:  # Edge case
+                        idx += 1
+                    elif t_l <= t_0 < t_u and t_1 <= t_u:
+                        # (t_0, t_1) completely contained in previous interval -> easy
+                        lowSplit, highSplit = (t_l < t_0), (t_1 < t_u)
+                        newL = []
+                        if lowSplit:
+                            newL.append((t_l, t_0, r))
+                        newL.append((t_0, t_1, r + rate))
+                        if highSplit:
+                            newL.append((t_1, t_u, r))
+                        keyValList[idx + idxShift:idx + idxShift + 1] = newL
+                        idxShift += len(newL)-1
+                        t_0 = t_1
+                        break   # Nothing else to do here
+                    elif t_l <= t_0 < t_u < t_1:
+                        lowSplit = (t_l < t_0)
+                        newL = []
+                        if lowSplit:
+                            newL.append((t_l, t_0, r))
+                        newL.append((t_0, t_u, r + rate))
+                        keyValList[idx + idxShift:idx + idxShift + 1] = newL
+                        idxShift += len(newL) - 1
+                        t_0 = t_u   # Adjust interval for next iterations
+                    else:
+                        idx += 1
+                if t_0 < t_1:
+                    # Add to last case
+                    keyValList.append((t_0, t_1, rate))
+
+        OD.clear()
+        OD.update(OrderedDict([((triplet[0], triplet[1]), triplet[2]) for triplet in keyValList]))
+
     def add_commodity(self, path, startTime, endTime, rate):
         """Adds commodity to the dictionaries"""
         self.pathCommodityDict[path] = (startTime, endTime, rate)
@@ -94,7 +148,7 @@ class MultiFlow:
                         idxShift += len(newL)-1
                         t_0 = t_1
                         break   # Nothing else to do here
-                    elif t_l <= t_0 < t_u and t_1 > t_u:
+                    elif t_l <= t_0 < t_u < t_1:
                         lowSplit = (t_l < t_0)
                         newL = []
                         if lowSplit:
@@ -116,27 +170,55 @@ class MultiFlow:
 
         return 0
 
-    def init_values(self, t):
-        """Init f, c, b up to initialTime t"""
+    def init_values(self, t, startingEdges, isolatedNodes):
+        """Init f, c, b up to initialTime t using the fact that we have known startingEdges and isolatedNodes"""
         minInf = -float('inf')
         maxInf = float('inf')
         for v in self.network.nodes:
-            self.spillback[v][(minInf, t)] = 1
-        for e in self.network.edges:
-            v, w = e
-            tau = self.network[v][w]['transitTime']
-            self.inflow[e][(minInf, t)] = 0
-            self.outflow[e][(minInf, t)] = 0
-            self.bIn[e][(minInf, t + tau)] = self.network[v][w]['inCapacity'] # not full
-            self.bOut[e][(minInf, t + tau)] = 0
+            if v not in isolatedNodes:
+                self.spillback[v][(minInf, t)] = 1
+            else:
+                # Nodes with no incoming edges have spillback factor always equal to 1
+                self.spillback[v][(minInf, maxInf)] = 1
 
+        # Init dictionaries
         for path in self.pathCommodityDict:
             self.commodityInflow[path] = {edge:OrderedDict() for edge in self.network.edges}
             self.commodityOutflow[path] = {edge:OrderedDict() for edge in self.network.edges}
-            for e in self.network.edges:
-                if self.edge_on_path(path, e):
-                    self.commodityInflow[path][e][(minInf, t)] = 0
-                    self.commodityOutflow[path][e][(minInf, t)] = 0
+
+        for e in self.network.edges:
+            v, w = e
+            tau = self.network[v][w]['transitTime']
+            #self.inflow[e][(minInf, t)] = 0
+            #self.outflow[e][(minInf, t)] = 0
+            if e not in startingEdges:
+                self.bIn[e][(minInf, t + tau)] = self.network[v][w]['inCapacity'] # Not full in this time frame
+            else:
+                # Starting edges have infinite storage, are hence never full
+                self.bIn[e][(minInf, maxInf)] = self.network[v][w]['inCapacity']
+
+            self.bOut[e][(minInf, t + tau)] = 0
+            for path in self.pathCommodityDict:
+                if v == path[0] and w == path[1]:
+                    # This is the initial edge, so we can safely map the flow
+                    startTime, endTime, rate = self.pathCommodityDict[path]
+                    self.commodityInflow[path][e][(minInf, startTime)] = 0
+                    self.commodityInflow[path][e][(startTime, endTime)] = rate
+                    self.commodityInflow[path][e][(endTime, maxInf)] = 0
+
+                    self.commodityOutflow[path][e][(minInf, t + tau)] = 0   # Here we can't know more than this
+                elif self.edge_on_path(path, e):
+                    # Edge is on path, but due to elif not the initial one
+                    # Get the sum of transitTimes up to that edge
+                    sTT, idx = 0, 0
+                    while idx < len(path)-1:
+                        if path[idx] == v:
+                            break
+                        else:
+                            sTT += self.network[path[idx]][path[idx+1]]['transitTime']
+                            idx += 1
+                    self.commodityInflow[path][e][(minInf, t + sTT)] = 0
+                    self.commodityOutflow[path][e][(minInf, t + sTT + tau)] = 0
                 else:
                     # Edge never used by this commodity
                     self.commodityInflow[path][e][(minInf, maxInf)] = 0
@@ -152,16 +234,23 @@ class MultiFlow:
 
         # Get the minimal start time, this is the time up to which we know everything, as nothing happens before that
         initialTime = min(self.timeCommodityDict.keys())[0]
-
-        # Init priority heap (No need to heapify, as this is sorted)
-        self.priority = [(initialTime, node) for node in self.network.nodes]
+        startingEdges = [(path[0], path[1]) for path in self.pathCommodityDict]
+        isoNodes = [v for v in self.network.nodes if self.network.in_degree(v) == 0]
 
         # Init f+, f-, c_v, b+_e, b-_e
-        self.init_values(initialTime)
+        self.init_values(initialTime, startingEdges, isoNodes)
+
+        # Init priority heap (No need to heapify, as this is sorted) (Note: isolated nodes not included)
+        self.priority = [(initialTime, node) for node in self.network.nodes if node not in isoNodes]
+        #self.priority = [(initialTime, node) for node in self.network.nodes]
+        print(self.priority)
+
 
         # LOOP
         # Access first element of heap
         theta, v = heapq.heappop(self.priority)
+
+
 
         # STEP 1: Compute push rates into node
 
