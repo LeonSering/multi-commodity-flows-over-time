@@ -198,6 +198,7 @@ class MultiFlow:
                 self.bIn[e][(minInf, maxInf)] = self.network[v][w]['inCapacity']
 
             self.bOut[e][(minInf, t + tau)] = 0
+
             for path in self.pathCommodityDict:
                 if v == path[0] and w == path[1]:
                     # This is the initial edge, so we can safely map the flow
@@ -242,17 +243,49 @@ class MultiFlow:
 
         # Init priority heap (No need to heapify, as this is sorted) (Note: isolated nodes not included)
         self.priority = [(initialTime, node) for node in self.network.nodes if node not in isoNodes]
-        #self.priority = [(initialTime, node) for node in self.network.nodes]
         print(self.priority)
-
 
         # LOOP
         # Access first element of heap
         theta, v = heapq.heappop(self.priority)
-
-
-
+        print("v: ", v, " theta: ", theta)
         # STEP 1: Compute push rates into node
+        in_edges = list(self.network.in_edges(v))
+        alpha = float('inf')
+        for e in in_edges:
+            # Compute alpha to get extension size
+            u, _ = e    # e = (u,v)
+            tau = self.network[u][v]['transitTime']
+            t = theta - tau
+            print("time ", t)
+
+            # Find maximal alpha such that commodity flows stay constant
+            for path in self.pathCommodityDict:
+                partAlpha = 0
+                lastRate = None
+                found = False
+                for interval in self.commodityInflow[path][e]:
+                    t_l, t_u = interval
+                    if t_l <= t < t_u:
+                        lastRate = self.commodityInflow[path][e][interval]
+                        partAlpha += t_u - t
+                        found = True
+                    elif found:
+                        if lastRate == self.commodityInflow[path][e][interval]:
+                            # We can extend further
+                            partAlpha += t_u - t_l
+                        else:
+                            break
+                #print(self.commodityInflow[path][e])
+                #print(partAlpha)
+                alpha = min(alpha, partAlpha)   # TODO: This works as extension only in the case of no spillback!
+        print(alpha)
+
+
+
+        # We compute bOut of that edge  # TODO: Do we have to take care of the case theta < tau (i.e. bOut = 0)?
+
+
 
         # TODO: DONT FORGET TO USE TIE!!
 
