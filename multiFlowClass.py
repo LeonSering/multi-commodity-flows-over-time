@@ -7,6 +7,7 @@
 
 import heapq
 from collections import OrderedDict
+from .utilitiesClass import Utilities
 
 class MultiFlow:
     """Manages the multi commodity flow"""
@@ -311,6 +312,64 @@ class MultiFlow:
                 alpha = min(alpha, partAlpha)   # TODO: This works as extension only in the case of no spillback!
         return alpha
 
+    def cum_inflow(self, v, w, t):
+        """
+        :param v: tail of edge
+        :param w: head of edge
+        :param t: time
+        :return: F_(v,w)^+(t)
+        """
+        if Utilities.is_leq_tol(t, 0):
+            return 0
+        e = (v, w)
+        s = 0
+        for path in self.commodityInflow:
+            for interval, inflowVal in self.commodityInflow[path][e].items():
+                t_l, t_u = interval
+                if t_l == -float('inf') or t_u == float('inf'):
+                    # In or outflow rate must be zero anyway
+                    continue
+                if Utilities.is_between_tol(t_l, t, t_u):
+                    # This is the interval in which t lies
+                    s += (t-t_l) * inflowVal
+                elif t > t_u:
+                    s += (t_u-t_l) * inflowVal
+                elif t <= t_l:
+                    break
+        return s
+
+    def cum_outflow(self, v, w, t):
+        """
+        :param v: tail of edge
+        :param w: head of edge
+        :param t: time
+        :return: F_(v,w)^-(t)
+        """
+        if Utilities.is_leq_tol(t, 0):
+            return 0
+        e = (v, w)
+        s = 0
+        for path in self.commodityOutflow:
+            for interval, inflowVal in self.commodityOutflow[path][e].items():
+                t_l, t_u = interval
+                if t_l == -float('inf') or t_u == float('inf'):
+                    # In or outflow rate must be zero anyway
+                    continue
+                if Utilities.is_between_tol(t_l, t, t_u):
+                    # This is the interval in which t lies
+                    s += (t-t_l) * inflowVal
+                elif t > t_u:
+                    s += (t_u-t_l) * inflowVal
+                elif t <= t_l:
+                    break
+        return s
+
+    def queue_size(self, e, t):
+        """Returns z_e(t)"""
+        v, w = e
+        tau = self.network[v][w]['transitTime']
+        return self.cum_inflow(t - tau) - self.cum_outflow(t)
+
     def extend_bOut(self, theta, alpha, in_edges):
         thetaFixed, alphaFixed = theta, alpha
         for e in in_edges:
@@ -361,7 +420,7 @@ class MultiFlow:
         print(alpha)
 
         # STEP 2: Compute push rates into node
-        self.extend_bOut(theta, alpha, in_edges)
+        #self.extend_bOut(theta, alpha, in_edges)
 
 
         # We compute bOut of that edge  # TODO: Do we have to take care of the case theta < tau (i.e. bOut = 0)?
