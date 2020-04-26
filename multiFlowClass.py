@@ -370,6 +370,29 @@ class MultiFlow:
         tau = self.network[v][w]['transitTime']
         return self.cum_inflow(t - tau) - self.cum_outflow(t)
 
+    def inflow_rate(self, e, t):
+        """Returns f^+_e(t)"""
+        r = 0
+        for path in self.commodityInflow:
+            for interval, flowRate in self.commodityInflow[path][e]:
+                t_l, t_u = interval
+                if t_l <= t < t_u:
+                    r += flowRate
+                    break
+        return r
+
+    def outflow_rate(self, e, t):
+        """Returns f^+_e(t)"""
+        r = 0
+        for path in self.commodityOutflow:
+            for interval, flowRate in self.commodityOutflow[path][e]:
+                t_l, t_u = interval
+                if t_l <= t < t_u:
+                    r += flowRate
+                    break
+        return r
+
+
     def extend_bOut(self, theta, alpha, in_edges):
         thetaFixed, alphaFixed = theta, alpha
         for e in in_edges:
@@ -419,8 +442,14 @@ class MultiFlow:
         alpha = self.compute_alpha(theta, v, in_edges)
         print(alpha)
 
+        e = in_edges[0]
+        u, v = e
+        tau = self.network[u][v]['transitTime']
+
         # STEP 2: Compute push rates into node
         #self.extend_bOut(theta, alpha, in_edges)
+        y = self.inflow_rate(e, theta - tau) if self.queue_size(e, theta) == 0 else float('inf')
+        bOutSnapshot = min(y, self.network[u][v]['inCapacity'])
 
 
         # We compute bOut of that edge  # TODO: Do we have to take care of the case theta < tau (i.e. bOut = 0)?
