@@ -100,40 +100,11 @@ class MultiFlow:
                 # Just add
                 keyValList.append((t_0, t_1, rate))
             else:
-                staticL = list(keyValList)
-                idx = 0
-                idxShift = 0
-                while idx < len(staticL):
-                    t_l, t_u, r = staticL[idx]
-                    if t_0 == t_u:  # Edge case
-                        idx += 1
-                    elif t_l <= t_0 < t_u and t_1 <= t_u:
-                        # (t_0, t_1) completely contained in previous interval -> easy
-                        lowSplit, highSplit = (t_l < t_0), (t_1 < t_u)
-                        newL = []
-                        if lowSplit:
-                            newL.append((t_l, t_0, r))
-                        newL.append((t_0, t_1, r + rate))
-                        if highSplit:
-                            newL.append((t_1, t_u, r))
-                        keyValList[idx + idxShift:idx + idxShift + 1] = newL
-                        idxShift += len(newL)-1
-                        t_0 = t_1
-                        break   # Nothing else to do here
-                    elif t_l <= t_0 < t_u < t_1:
-                        lowSplit = (t_l < t_0)
-                        newL = []
-                        if lowSplit:
-                            newL.append((t_l, t_0, r))
-                        newL.append((t_0, t_u, r + rate))
-                        keyValList[idx + idxShift:idx + idxShift + 1] = newL
-                        idxShift += len(newL) - 1
-                        t_0 = t_u   # Adjust interval for next iterations
-                    else:
-                        idx += 1
-                if t_0 < t_1:
-                    # Add to last case
+                t_l, t_u, _ = keyValList[-1]
+                if t_u <= t_0:
                     keyValList.append((t_0, t_1, rate))
+                elif t_0 <= t_u < t_1:
+                    keyValList.append((t_u, t_1, rate))
 
         OD.clear()
         OD.update(OrderedDict([((triplet[0], triplet[1]), triplet[2]) for triplet in keyValList]))
@@ -242,11 +213,11 @@ class MultiFlow:
         minInf = -float('inf')
         maxInf = float('inf')
         for v in self.network.nodes:
-            if v not in isolatedNodes:
-                self.spillback[v][(minInf, t)] = 1
-            else:
-                # Nodes with no incoming edges have spillback factor always equal to 1
+            if v in isolatedNodes or self.network.out_degree(v) == 0:
+                # Nodes with no incoming edges or no outgoing edges have spillback factor always equal to 1
                 self.spillback[v][(minInf, maxInf)] = 1
+            else:
+                self.spillback[v][(minInf, t)] = 1
 
         # Init dictionaries
         for path in self.pathCommodityDict:
@@ -402,6 +373,12 @@ class MultiFlow:
                     break
         return r
 
+    def spillback_factor(self, v, t):
+        """Returns c_v(t)"""
+        for interval, factor in reversed(self.spillback[v].items()):
+            t_l, t_u = interval
+            if t_l <= t <= t_u:
+                return factor
 
     def extend_bOut(self, theta, alpha, in_edges):
         thetaFixed, alphaFixed = theta, alpha
@@ -456,14 +433,32 @@ class MultiFlow:
         # STEP 1: Compute alpha extension size
         in_edges = list(self.network.in_edges(v))
         alpha = self.compute_alpha(theta, v, in_edges)
-        print(alpha)
+        print("Alpha: ", alpha)
 
-        e = in_edges[0]
-        u, v = e
-        tau = self.network[u][v]['transitTime']
 
-        # STEP 2: Compute push rates into node
-        #self.extend_bOut(theta, alpha, in_edges)
-        y = self.inflow_rate(e, theta - tau) if self.queue_size(e, theta) == 0 else float('inf')
-        bOutSnapshot = min(y, self.network[u][v]['inCapacity'])
+        # STEP 2: Extend spillback factor
+        c_v = self.spillback_factor(v, theta)
+        print("C_v: ", c_v)
+        print(self.spillback[v])
+        self.dictInSort(self.spillback[v], (theta, theta + alpha, c_v))
+        print(self.spillback[v])
+
+
+        # STEP 3: Extend outflow of incoming edges
+        for e in in_edges:
+            u, v = e
+            print("Edge: ", e)
+            tau = self.network[u][v]['transitTime']
+
+            y = self.inflow_rate(e, theta - tau) if self.queue_size(e, theta) == 0 else float('inf')
+            bOutSnapshot = min(y, self.network[u][v]['outCapacity'])
+            print("bOutSnapshot: ", bOutSnapshot)
+
+            outflow_e = min(c_v * self.network[u][v]['outCapacity'], bOutSnapshot)
+            print("Outflow_e: ", outflow_e)
+            if outflow_e == 0:
+                for path in self.commodityOutflow:
+                    self.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0))
+            else:
+                pass
 
