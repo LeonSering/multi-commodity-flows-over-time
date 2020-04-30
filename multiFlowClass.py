@@ -7,7 +7,9 @@
 
 import heapq
 from collections import OrderedDict
-from .utilitiesClass import Utilities
+from utilitiesClass import Utilities
+import networkx as nx
+
 
 class MultiFlow:
     """Manages the multi commodity flow"""
@@ -157,6 +159,7 @@ class MultiFlow:
                 1: "Transittime must be greater than zero for all edges.",
                 2: "Storage of initial edges (of commodities) have to be infinite.",
                 3: "Incapacities of initial edges (of commodities) have to be infinite.",
+                4: "Graph must be acyclic." # TODO: Relaxable assumption?
             }
 
             return errorDescription[errorCode]
@@ -175,6 +178,13 @@ class MultiFlow:
             if self.network[v][w]['inCapacity'] < float('inf'):
                 return get_error_message(3)
             #mergedFlows[(v, w)] = []
+
+        try:
+            nx.find_cycle(self.network)
+            return get_error_message(4)
+        except nx.NetworkXNoCycle:
+            pass
+
         """
         sortedIntervalDict = OrderedDict(sorted(self.timeCommodityDict.items()))
         for interval in sortedIntervalDict:
@@ -368,13 +378,13 @@ class MultiFlow:
         """Returns z_e(t)"""
         v, w = e
         tau = self.network[v][w]['transitTime']
-        return self.cum_inflow(t - tau) - self.cum_outflow(t)
+        return self.cum_inflow(v, w, t - tau) - self.cum_outflow(v, w, t)
 
     def inflow_rate(self, e, t):
         """Returns f^+_e(t)"""
         r = 0
         for path in self.commodityInflow:
-            for interval, flowRate in self.commodityInflow[path][e]:
+            for interval, flowRate in self.commodityInflow[path][e].items():
                 t_l, t_u = interval
                 if t_l <= t < t_u:
                     r += flowRate
@@ -385,7 +395,7 @@ class MultiFlow:
         """Returns f^+_e(t)"""
         r = 0
         for path in self.commodityOutflow:
-            for interval, flowRate in self.commodityOutflow[path][e]:
+            for interval, flowRate in self.commodityOutflow[path][e].items():
                 t_l, t_u = interval
                 if t_l <= t < t_u:
                     r += flowRate
@@ -410,7 +420,6 @@ class MultiFlow:
             for path in self.pathCommodityDict:
                 print(self.commodityInflow[path][e])
                 print(self.commodityOutflow[path][e])
-
 
 
     def compute(self):
@@ -452,9 +461,6 @@ class MultiFlow:
         bOutSnapshot = min(y, self.network[u][v]['inCapacity'])
 
 
-        # We compute bOut of that edge  # TODO: Do we have to take care of the case theta < tau (i.e. bOut = 0)?
 
-
-
-        # TODO: DONT FORGET TO USE TIE!!
+        # TODO: DONT FORGET TO USE TIE!! TIE MIGHT BE IMPORTANT IN BASIC COMPUTATION
 
