@@ -438,13 +438,20 @@ class MultiFlow:
         # Init f+, f-, c_v, b+_e, b-_e
         self.init_values(initialTime, startingEdges, isoNodes)
 
-        # Init priority heap (No need to heapify, as this is sorted) (Note: isolated nodes not included)
-        self.priority = [(initialTime, node) for node in self.network.nodes if node not in isoNodes]
-        print(self.priority)
+        # Init priority heap (Note: isolated nodes not included)
+        # Structure: Each element of the heap is a 4 tuple (theta, hasOutgoingFull, topologicalDistance, nodeName)
+        # hasOutgoingFull (0 or 1) and topologicalDistance (0, 1, 2, ...) are tie breakers, lower values preferred
+        # hasOutgoingFull: integer value of boolean status whether node has outgoing edges that are currently full
+        # topologicalDistance: Topological ordering in reverse order (being far away top. is preferred)
+        # priority decreases with position in heap tuple, i.e. topologicalDistance is tie breaker for hasOutgoingFull
+        topologicalSort = [node for node in reversed(list(nx.topological_sort(self.network))) if node not in isoNodes]
+        topologicalDistance = dict((node, idx) for idx, node in enumerate(topologicalSort))
+        self.priority = [(initialTime, 0, topologicalDistance[node], node) for node in self.network.nodes if node not in isoNodes]
+        heapq.heapify(self.priority)
 
         # LOOP
         # Access first element of heap
-        theta, v = heapq.heappop(self.priority)
+        theta, _, _, v = heapq.heappop(self.priority)
         print("v: ", v, " theta: ", theta)
         # STEP 1: Compute alpha extension size
         in_edges = list(self.network.in_edges(v))
@@ -459,8 +466,4 @@ class MultiFlow:
         #self.extend_bOut(theta, alpha, in_edges)
         y = self.inflow_rate(e, theta - tau) if self.queue_size(e, theta) == 0 else float('inf')
         bOutSnapshot = min(y, self.network[u][v]['inCapacity'])
-
-
-
-        # TODO: DONT FORGET TO USE TIE!! TIE MIGHT BE IMPORTANT IN BASIC COMPUTATION
 
