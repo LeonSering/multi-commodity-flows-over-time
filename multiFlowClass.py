@@ -271,7 +271,6 @@ class MultiFlow:
             u, _ = e    # e = (u,v)
             tau = self.network[u][v]['transitTime']
             t = theta - tau
-            print("time ", t)
 
             # Find maximal alpha such that commodity flows stay constant
             for path in self.pathCommodityDict:
@@ -351,16 +350,22 @@ class MultiFlow:
         tau = self.network[v][w]['transitTime']
         return self.cum_inflow(v, w, t - tau) - self.cum_outflow(v, w, t)
 
-    def inflow_rate(self, e, t):
+    def inflow_rate(self, e, t, commodityPath=None):
         """Returns f^+_e(t)"""
         r = 0
-        for path in self.commodityInflow:
-            for interval, flowRate in self.commodityInflow[path][e].items():
+        if not commodityPath:
+            for path in self.commodityInflow:
+                for interval, flowRate in self.commodityInflow[path][e].items():
+                    t_l, t_u = interval
+                    if t_l <= t < t_u:
+                        r += flowRate
+                        break
+            return r
+        else:
+            for interval, flowRate in self.commodityInflow[commodityPath][e].items():
                 t_l, t_u = interval
                 if t_l <= t < t_u:
-                    r += flowRate
-                    break
-        return r
+                    return flowRate
 
     def outflow_rate(self, e, t):
         """Returns f^+_e(t)"""
@@ -380,24 +385,35 @@ class MultiFlow:
             if t_l <= t <= t_u:
                 return factor
 
-    def extend_bOut(self, theta, alpha, in_edges):
-        thetaFixed, alphaFixed = theta, alpha
-        for e in in_edges:
-            u, v = e
-            tau = self.network[u][v]['transitTime']
-            theta = thetaFixed
-            alpha = alphaFixed
-            if theta < tau:
-                # Adjust extension interval, as bOut(t) = 0 for time < tau
-                # Note: No need to update bOut, we have that information already (see initialization)
-                alpha = alpha - (tau-theta)
-                theta = tau
-            t = theta - tau
-            print(theta, alpha)
-            for path in self.pathCommodityDict:
-                print(self.commodityInflow[path][e])
-                print(self.commodityOutflow[path][e])
+    def travel_time(self, e, t):
+        """Returns T_e(t) = t + tau_e + q_e(t)"""
+        if abs(t) == float('inf'):
+            return t
+        v, w = e
+        tau = self.network[v][w]['transitTime']
+        return t + tau + float(self.queue_size(e, t)) / self.network[v][w]['outCapacity']
 
+    def inverse_travel_time(self, e, theta):
+        """Finds phi s.t. T_e(phi) = theta"""
+        # Check whether we dont have a queue by chance
+        v, w = e
+        tau = self.network[v][w]['transitTime']
+        if Utilities.is_eq_tol(self.travel_time(e, theta-tau), theta, tol=1e-5):
+            return theta-tau
+
+        for path in self.commodityInflow:
+            for interval, inflowVal in reversed(self.commodityInflow[path][e].items()):
+                t_l, t_u = interval
+                T_l, T_u = self.travel_time(e, t_l), self.travel_time(e, t_u)
+                if T_l <= theta <= T_u:
+                    # Must lie in this interval -> binary search
+                    phi = Utilities.binary_search((t_l, t_u), lambda t: self.travel_time(e, t), theta)
+                    return phi
+                elif theta > T_u:
+                    # Maybe check other path
+                    break
+                elif theta < T_l:
+                    continue
 
     def compute(self):
         """The priority heap maintained works as follows:
@@ -426,39 +442,94 @@ class MultiFlow:
         self.priority = [(initialTime, 0, topologicalDistance[node], node) for node in self.network.nodes if node not in isoNodes]
         heapq.heapify(self.priority)
 
+
         # LOOP
-        # Access first element of heap
-        theta, _, _, v = heapq.heappop(self.priority)
-        print("v: ", v, " theta: ", theta)
-        # STEP 1: Compute alpha extension size
-        in_edges = list(self.network.in_edges(v))
-        alpha = self.compute_alpha(theta, v, in_edges)
-        print("Alpha: ", alpha)
+        #while self.priority:
+        for i in range(9):
+            print("Iteration ", i)
+            print("PQ: ", self.priority)
+            # Access first element of heap
+            theta, hasOutgoingFull, topDist, v = heapq.heappop(self.priority)
+            print("v: ", v, " theta: ", theta)
+
+            print("\nSTEP 1")
+            # STEP 1: Compute alpha extension size
+            in_edges = list(self.network.in_edges(v))
+            alpha = self.compute_alpha(theta, v, in_edges)
+            print("Alpha: ", alpha)
+
+            print("\nSTEP 2")
+            # STEP 2: Extend spillback factor
+            c_v = self.spillback_factor(v, theta)
+            print("C_v: ", c_v)
+            print("Previous spillback: ", self.spillback[v])
+            self.dictInSort(self.spillback[v], (theta, theta + alpha, c_v))
+            print("Updated spillback: ", self.spillback[v])
+
+            print("\nSTEP 3")
+            # STEP 3: Extend outflow of incoming edges
+            for e in in_edges:
+                u, v = e
+                tau = self.network[u][v]['transitTime']
+                print("Edge: ", e, " Tau: ", tau)
 
 
-        # STEP 2: Extend spillback factor
-        c_v = self.spillback_factor(v, theta)
-        print("C_v: ", c_v)
-        print(self.spillback[v])
-        self.dictInSort(self.spillback[v], (theta, theta + alpha, c_v))
-        print(self.spillback[v])
+                y = self.inflow_rate(e, theta - tau) if self.queue_size(e, theta) == 0 else float('inf')
+                bOutSnapshot = min(y, self.network[u][v]['outCapacity'])
+                print("bOutSnapshot: ", bOutSnapshot)
 
+                outflow_e = min(c_v * self.network[u][v]['outCapacity'], bOutSnapshot)
+                print("Outflow_e: ", outflow_e)
+                if Utilities.is_eq_tol(0, outflow_e, tol=1e-4):
+                    for path in self.commodityOutflow:
+                        self.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0.0))
+                else:
+                    # We need to find phi s.t. T_e(phi) = theta
+                    phi = self.inverse_travel_time(e, theta)
+                    print("Phi: ", phi)
+                    print("T_e(phi): ", self.travel_time(e, phi))
+                    for path in self.commodityOutflow:
+                        inflow_e = self.inflow_rate(e, phi)
+                        if Utilities.is_eq_tol(0, inflow_e, tol=1e-4):
+                            self.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0.0))
+                        else:
+                            inflow_ratio = float(self.inflow_rate(e, phi, commodityPath=path))/inflow_e
+                            outflow_ext = inflow_ratio * outflow_e
+                            print("Outflow_ext: ", outflow_ext)
+                            self.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, outflow_ext))
 
-        # STEP 3: Extend outflow of incoming edges
-        for e in in_edges:
-            u, v = e
-            print("Edge: ", e)
-            tau = self.network[u][v]['transitTime']
-
-            y = self.inflow_rate(e, theta - tau) if self.queue_size(e, theta) == 0 else float('inf')
-            bOutSnapshot = min(y, self.network[u][v]['outCapacity'])
-            print("bOutSnapshot: ", bOutSnapshot)
-
-            outflow_e = min(c_v * self.network[u][v]['outCapacity'], bOutSnapshot)
-            print("Outflow_e: ", outflow_e)
-            if outflow_e == 0:
+                # STEP 4: Extend inflow rates along commodity paths
                 for path in self.commodityOutflow:
-                    self.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0))
-            else:
-                pass
+                    edges_on_path = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
+                    try:
+                        idx_on_path = edges_on_path.index(e)
+                    except ValueError:
+                        continue
+                    if idx_on_path == len(edges_on_path)-1:
+                        # Last edge of commodity, nothing to do here
+                        continue
+                    else:
+                        e_next = edges_on_path[idx_on_path + 1]
+                        lastOutflowEntry = next(reversed(self.commodityOutflow[path][e].items()))
+                        (n_l, n_u), r = lastOutflowEntry
+                        self.dictInSort(self.commodityInflow[path][e_next], (n_l, n_u, r))
+
+                # STEP 5: Update bOut
+                queue_in_future = self.queue_size(e, theta + alpha)
+                y_ext = self.inflow_rate(e, theta - tau) if Utilities.is_eq_tol(queue_in_future, 0.0, 1e-6) else float('inf')
+                bOut_ext = min(y_ext, self.network[u][v]['outCapacity'])
+                self.dictInSort(self.bOut[e], (theta, theta + alpha, bOut_ext))
+                print("\n")
+            # STEP 6: Update priority queue
+            theta_new = theta + alpha
+            if theta_new < float('inf'):
+                hasOutgoingFull_new = 0 # TODO: This needs to be done!
+                heapq.heappush(self.priority, (theta_new, hasOutgoingFull_new, topDist, v))
+
+            print("-----------------------------------------------------")
+
+
+
+
+
 

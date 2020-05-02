@@ -80,6 +80,21 @@ class Utilities:
         return bisect.bisect_left(L, el)
 
     @staticmethod
+    def binary_search(interval, fc, y):
+        # Try to find x \in interval s.t. fc(x) = y
+        # Called recursively
+        t_l, t_u = interval
+        # TODO: Deal with infinity cases
+        mid = float(t_u+t_l)/2
+        y_mid = fc(mid)
+        if Utilities.is_eq_tol(y, y_mid, tol=1e-5):
+            return mid  # Solution found
+        elif y_mid < y:
+            return Utilities.binary_search((mid, t_u), fc, y)
+        elif y_mid > y:
+            return Utilities.binary_search((t_l, mid), fc, y)
+
+    @staticmethod
     def get_edge_label_rotation(axes, src, dst, pos):
         """
         Modified from networkx plotting edge label function
