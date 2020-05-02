@@ -172,3 +172,26 @@ class Utilities:
         OD.clear()
         OD.update(OrderedDict([((triplet[0], triplet[1]), triplet[2]) for triplet in keyValList]))
 
+    @staticmethod
+    def cleanup_output_list(tupleList):
+        finalList = []
+        first_idx = 0
+        while first_idx <= len(tupleList) - 1:
+            x_0, y_0 = tupleList[first_idx]
+            last_idx = first_idx
+            while last_idx <= len(tupleList) - 1 and y_0 == tupleList[last_idx][1]:
+                last_idx += 1
+            finalList.append((x_0, y_0))
+            if last_idx - 1 > first_idx:
+                x, y = tupleList[last_idx - 1]
+                finalList.append((x, y))
+            first_idx = last_idx
+
+        prettyList = []
+        for x, y in finalList:
+            if x < float('inf') and int(x) == x:
+                x = int(x)
+            if int(y) == y:
+                y = int(y)
+            prettyList.append((x, y))
+        return prettyList

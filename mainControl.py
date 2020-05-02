@@ -8,6 +8,7 @@ from multiFlowClass import MultiFlow
 from argparse import ArgumentParser
 import pickle
 import sys
+import os
 
 def load_graph(path):
     """
@@ -48,8 +49,6 @@ def read_files(networkFile, inflowFile):
 
     return mf
 
-
-
 # Parser configuration
 parser = ArgumentParser(description='Compute multi-commodity Flows over Time.')
 parser.add_argument("networkFile", help="Spillback network in .cg-Format.")
@@ -64,3 +63,6 @@ inflowFile = args.inflowFile
 # Main
 mf = read_files(networkFile, inflowFile)
 mf.compute()
+baseName = os.path.basename(networkFile)
+baseName = baseName[:baseName.rfind(".")]
+mf.generate_output(baseName)

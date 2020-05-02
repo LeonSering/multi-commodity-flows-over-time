@@ -28,7 +28,6 @@ class MultiFlow:
         self.bOut = {edge:OrderedDict() for edge in self.network.edges} # b^-_e
         self.spillback = {node:OrderedDict() for node in self.network.nodes}   # c_v
 
-
     def add_commodity(self, path, startTime, endTime, rate):
         """Adds commodity to the dictionaries"""
         self.pathCommodityDict[path] = (startTime, endTime, rate)
@@ -168,7 +167,7 @@ class MultiFlow:
 
         return alpha
 
-    def cum_inflow(self, v, w, t):
+    def cum_inflow(self, v, w, t, commodityPath=None):
         """
         :param v: tail of edge
         :param w: head of edge
@@ -179,7 +178,8 @@ class MultiFlow:
             return 0
         e = (v, w)
         s = 0
-        for path in self.commodityInflow:
+        paths = self.commodityInflow if not commodityPath else [commodityPath]
+        for path in paths:
             for interval, inflowVal in self.commodityInflow[path][e].items():
                 t_l, t_u = interval
                 if t_l == -float('inf') or t_u == float('inf'):
@@ -229,19 +229,14 @@ class MultiFlow:
     def inflow_rate(self, e, t, commodityPath=None):
         """Returns f^+_e(t)"""
         r = 0
-        if not commodityPath:
-            for path in self.commodityInflow:
-                for interval, flowRate in self.commodityInflow[path][e].items():
-                    t_l, t_u = interval
-                    if t_l <= t < t_u:
-                        r += flowRate
-                        break
-            return r
-        else:
-            for interval, flowRate in self.commodityInflow[commodityPath][e].items():
+        paths = self.commodityInflow if not commodityPath else [commodityPath]
+        for path in paths:
+            for interval, flowRate in self.commodityInflow[path][e].items():
                 t_l, t_u = interval
                 if t_l <= t < t_u:
-                    return flowRate
+                    r += flowRate
+                    break
+        return r
 
     def outflow_rate(self, e, t):
         """Returns f^+_e(t)"""
@@ -293,13 +288,45 @@ class MultiFlow:
                 elif theta < T_l:
                     continue
 
-    def output(self):
+
+    def generate_output(self, baseName):
         """Outputs the following:
         - Path travel times
         - Total cumulative inflow
         - Cumulative inflow per commodity
         """
+        pathTTFile = baseName + "-" + "path_travel_times.txt"
+        commodityCumFile = baseName + "-" + "cumulative_inflow_commodity_"
+        totalCumFile = baseName + "-" + "total_cumulative_inflow.txt"
 
+        # Cumulative inflow per commodity
+        for idx, path in enumerate(self.pathCommodityDict):
+            with open(commodityCumFile + str(idx) + ".txt", "w") as file:
+                file.write("arc cumulative_inflow_function\n")
+                for i in range(len(path)-1):
+                    v, w = path[i], path[i+1]
+                    e = (v, w)
+                    s = str(v) + "," + str(w) + " "
+                    breakPoints = [0]
+                    for interval, rate in self.commodityInflow[path][e].items():
+                        t_l, t_u = interval
+                        if t_l >= 0:
+                            breakPoints.append(t_l)
+                        breakPoints.append(t_u)
+                    breakPoints = sorted(list(set(breakPoints)))
+                    tupleList = [(x, self.cum_inflow(v, w, x, commodityPath=path)) for x in breakPoints]
+                    prettyList = Utilities.cleanup_output_list(tupleList)
+
+                    s = s + ",".join([str(pair) for pair in prettyList]) + "\n"
+                    file.write(s)
+
+        # Total cumulative inflow
+        with open(totalCumFile, "w") as file:
+            file.write("arc total_cumulative_inflow_function")
+            for e in self.network.edges:
+                v, w = e
+                s = str(v) + "," + str(w) + " "
+                breakPoints = []
 
     def compute(self):
         """The priority heap maintained works as follows:
@@ -420,7 +447,6 @@ class MultiFlow:
 
             print("-----------------------------------------------------")
             idx += 1
-        self.output()
 
 
 
