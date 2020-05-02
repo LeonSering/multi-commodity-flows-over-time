@@ -345,6 +345,11 @@ class MultiFlow:
                     continue
 
     def output(self):
+        """Outputs the following:
+        1) Path travel times
+        2) Total cumulative inflow
+        3) Cumulative inflow per commodity
+        """
         pass
 
     def compute(self):
