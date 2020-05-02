@@ -75,57 +75,6 @@ class MultiFlow:
             return get_error_message(4)
         except nx.NetworkXNoCycle:
             pass
-
-        """
-        sortedIntervalDict = OrderedDict(sorted(self.timeCommodityDict.items()))
-        for interval in sortedIntervalDict:
-            t_0, t_1 = interval
-            path, rate = sortedIntervalDict[interval]
-            v, w = path[0], path[1]
-            e = (v, w)
-            if len(mergedFlows[e]) == 0:
-                mergedFlows[e].append((t_0, t_1, rate))
-            else:
-                staticL = list(mergedFlows[e])
-                idx = 0
-                idxShift = 0
-                while idx < len(staticL):
-                    t_l, t_u, r = staticL[idx]
-                    if t_0 == t_u:  # Edge case
-                        idx += 1
-                    elif t_l <= t_0 < t_u and t_1 <= t_u:
-                        # (t_0, t_1) completely contained in previous interval -> easy
-                        lowSplit, highSplit = (t_l < t_0), (t_1 < t_u)
-                        newL = []
-                        if lowSplit:
-                            newL.append((t_l, t_0, r))
-                        newL.append((t_0, t_1, r + rate))
-                        if highSplit:
-                            newL.append((t_1, t_u, r))
-                        mergedFlows[e][idx + idxShift:idx + idxShift + 1] = newL
-                        idxShift += len(newL)-1
-                        t_0 = t_1
-                        break   # Nothing else to do here
-                    elif t_l <= t_0 < t_u < t_1:
-                        lowSplit = (t_l < t_0)
-                        newL = []
-                        if lowSplit:
-                            newL.append((t_l, t_0, r))
-                        newL.append((t_0, t_u, r + rate))
-                        mergedFlows[e][idx + idxShift:idx + idxShift + 1] = newL
-                        idxShift += len(newL) - 1
-                        t_0 = t_u   # Adjust interval for next iterations
-                    else:
-                        idx += 1
-                if t_0 < t_1:
-                    # Add to last case
-                    mergedFlows[e].append((t_0, t_1, rate))
-        for e in mergedFlows:
-            v, w = e
-            m = max(mergedFlows[e], key=lambda entry: entry[2])[2]
-            if m > self.network[v][w]['inCapacity']:
-                return get_error_message(3)
-        """
         return 0
 
     def init_values(self, t, startingEdges, isolatedNodes):
@@ -346,11 +295,11 @@ class MultiFlow:
 
     def output(self):
         """Outputs the following:
-        1) Path travel times
-        2) Total cumulative inflow
-        3) Cumulative inflow per commodity
+        - Path travel times
+        - Total cumulative inflow
+        - Cumulative inflow per commodity
         """
-        pass
+
 
     def compute(self):
         """The priority heap maintained works as follows:
