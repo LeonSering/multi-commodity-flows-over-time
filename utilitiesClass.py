@@ -84,10 +84,18 @@ class Utilities:
         # Try to find x \in interval s.t. fc(x) = y
         # Called recursively
         t_l, t_u = interval
-        # TODO: Deal with infinity cases
+        if t_l == -float('inf'):
+            # We need to change the interval in a suitable manner
+            t_l = 0
+        if t_u == float('inf'):
+            M = 10.0
+            while fc(M) <= y:
+                M *= 2
+            t_u = M
+
         mid = float(t_u+t_l)/2
         y_mid = fc(mid)
-        if Utilities.is_eq_tol(y, y_mid, tol=1e-5):
+        if Utilities.is_eq_tol(y, y_mid, tol=1e-9):
             return mid  # Solution found
         elif y_mid < y:
             return Utilities.binary_search((mid, t_u), fc, y)

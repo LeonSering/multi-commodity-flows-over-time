@@ -330,16 +330,16 @@ class MultiFlow:
         e = (v, w)
         s = 0
         for path in self.commodityOutflow:
-            for interval, inflowVal in self.commodityOutflow[path][e].items():
+            for interval, outflowVal in self.commodityOutflow[path][e].items():
                 t_l, t_u = interval
                 if t_l == -float('inf') or t_u == float('inf'):
                     # In or outflow rate must be zero anyway
                     continue
                 if Utilities.is_between_tol(t_l, t, t_u):
                     # This is the interval in which t lies
-                    s += (t-t_l) * inflowVal
+                    s += (t-t_l) * outflowVal
                 elif t > t_u:
-                    s += (t_u-t_l) * inflowVal
+                    s += (t_u-t_l) * outflowVal
                 elif t <= t_l:
                     break
         return s
@@ -391,17 +391,19 @@ class MultiFlow:
             return t
         v, w = e
         tau = self.network[v][w]['transitTime']
-        return t + tau + float(self.queue_size(e, t)) / self.network[v][w]['outCapacity']
+        return t + tau + float(self.queue_size(e, t + tau)) / self.network[v][w]['outCapacity']
 
     def inverse_travel_time(self, e, theta):
         """Finds phi s.t. T_e(phi) = theta"""
         # Check whether we dont have a queue by chance
         v, w = e
         tau = self.network[v][w]['transitTime']
-        if Utilities.is_eq_tol(self.travel_time(e, theta-tau), theta, tol=1e-5):
+        if Utilities.is_eq_tol(self.travel_time(e, theta-tau), theta, tol=1e-6):
             return theta-tau
 
         for path in self.commodityInflow:
+            if not self.edge_on_path(path, e):
+                continue
             for interval, inflowVal in reversed(self.commodityInflow[path][e].items()):
                 t_l, t_u = interval
                 T_l, T_u = self.travel_time(e, t_l), self.travel_time(e, t_u)
@@ -445,7 +447,10 @@ class MultiFlow:
 
         # LOOP
         #while self.priority:
-        for i in range(9):
+        debugBound = 13
+        for i in range(debugBound):
+            if i == debugBound - 1:
+                print("LAST")
             print("Iteration ", i)
             print("PQ: ", self.priority)
             # Access first element of heap
@@ -480,12 +485,12 @@ class MultiFlow:
 
                 outflow_e = min(c_v * self.network[u][v]['outCapacity'], bOutSnapshot)
                 print("Outflow_e: ", outflow_e)
-                if Utilities.is_eq_tol(0, outflow_e, tol=1e-4):
+                if Utilities.is_eq_tol(0, outflow_e, tol=1e-6):
                     for path in self.commodityOutflow:
                         self.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0.0))
                 else:
                     # We need to find phi s.t. T_e(phi) = theta
-                    phi = self.inverse_travel_time(e, theta)
+                    phi = round(self.inverse_travel_time(e, theta), 6)
                     print("Phi: ", phi)
                     print("T_e(phi): ", self.travel_time(e, phi))
                     for path in self.commodityOutflow:
