@@ -264,7 +264,7 @@ class MultiFlow:
                     self.commodityOutflow[path][e][(minInf, maxInf)] = 0
 
     def compute_alpha(self, theta, v, in_edges):
-        """Computes alpha = min_{e in delta^-(v)} alpha_e such that commodity inflow constant"""
+        """Computes alpha = min_{e in delta^-(v)} alpha_e such that commodity inflow constant and queue does not vanish"""
         alpha = float('inf')
         for e in in_edges:
             # Compute alpha to get extension size
@@ -289,7 +289,14 @@ class MultiFlow:
                             partAlpha += t_u - t_l
                         else:
                             break
+
                 alpha = min(alpha, partAlpha)   # TODO: This works as extension only in the case of no spillback!
+
+            # Find maximal alpha such that queues do not vanish
+            timeToVanish = self.queue_size(e, theta) / self.network[u][v]['outCapacity']
+            if Utilities.is_greater_tol(timeToVanish, 0.0):
+                alpha = min(alpha, timeToVanish)
+
         return alpha
 
     def cum_inflow(self, v, w, t):
@@ -348,7 +355,7 @@ class MultiFlow:
         """Returns z_e(t)"""
         v, w = e
         tau = self.network[v][w]['transitTime']
-        return self.cum_inflow(v, w, t - tau) - self.cum_outflow(v, w, t)
+        return float(self.cum_inflow(v, w, t - tau) - self.cum_outflow(v, w, t))
 
     def inflow_rate(self, e, t, commodityPath=None):
         """Returns f^+_e(t)"""
@@ -447,7 +454,7 @@ class MultiFlow:
 
         # LOOP
         #while self.priority:
-        debugBound = 13
+        debugBound = 20
         for i in range(debugBound):
             if i == debugBound - 1:
                 print("LAST")
@@ -494,6 +501,8 @@ class MultiFlow:
                     print("Phi: ", phi)
                     print("T_e(phi): ", self.travel_time(e, phi))
                     for path in self.commodityOutflow:
+                        if not self.edge_on_path(path, e):
+                            continue
                         inflow_e = self.inflow_rate(e, phi)
                         if Utilities.is_eq_tol(0, inflow_e, tol=1e-4):
                             self.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0.0))
