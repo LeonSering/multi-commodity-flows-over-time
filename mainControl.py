@@ -65,4 +65,4 @@ mf = read_files(networkFile, inflowFile)
 mf.compute()
 baseName = os.path.basename(networkFile)
 baseName = baseName[:baseName.rfind(".")]
-mf.generate_output(baseName)
+mf.generate_output(os.path.dirname(os.path.abspath(networkFile)), baseName)

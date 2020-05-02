@@ -9,6 +9,7 @@ import heapq
 from collections import OrderedDict
 from utilitiesClass import Utilities
 import networkx as nx
+import os
 
 
 class MultiFlow:
@@ -301,15 +302,15 @@ class MultiFlow:
                     continue
 
 
-    def generate_output(self, baseName):
+    def generate_output(self, filePath, baseName):
         """Outputs the following:
         - Path travel times
         - Total cumulative inflow
         - Cumulative inflow per commodity
         """
-        pathTTFile = baseName + "-" + "path_travel_times.txt"
-        commodityCumFile = baseName + "-" + "cumulative_inflow_commodity_"
-        totalCumFile = baseName + "-" + "total_cumulative_inflow.txt"
+        pathTTFile = os.path.join(filePath, baseName + "-" + "path_travel_times.txt")
+        commodityCumFile = os.path.join(filePath,baseName + "-" + "cumulative_inflow_commodity_")
+        totalCumFile = os.path.join(filePath,baseName + "-" + "total_cumulative_inflow.txt")
 
         # Cumulative inflow per commodity
         for idx, path in enumerate(self.pathCommodityDict):
