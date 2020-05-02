@@ -413,9 +413,6 @@ class MultiFlow:
         self.priority = [(initialTime, 0, topologicalDistance[node], node) for node in self.network.nodes if node not in isoNodes]
         heapq.heapify(self.priority)
 
-
-        # LOOP
-        #while self.priority:
         debugBound = 51
         idx = 1
         while self.priority:

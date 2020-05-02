@@ -199,7 +199,7 @@ class Utilities:
             last_idx = first_idx + 1
             while last_idx <= len(tupleList) - 1 \
                     and Utilities.is_eq_tol(m_l, slope((x_0, y_0), tupleList[last_idx]), tol=1e-4) \
-                    and tupleList[last_idx][1] < float('inf'):
+                    and tupleList[last_idx][0] < float('inf'):
                 last_idx += 1
             finalList.append((x_0, y_0))
             x, y = tupleList[last_idx - 1]
