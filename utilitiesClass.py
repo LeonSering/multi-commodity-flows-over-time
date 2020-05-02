@@ -179,7 +179,7 @@ class Utilities:
         while first_idx <= len(tupleList) - 1:
             x_0, y_0 = tupleList[first_idx]
             last_idx = first_idx
-            while last_idx <= len(tupleList) - 1 and y_0 == tupleList[last_idx][1]:
+            while last_idx <= len(tupleList) - 1 and Utilities.is_eq_tol(y_0, tupleList[last_idx][1], tol=1e-4):
                 last_idx += 1
             finalList.append((x_0, y_0))
             if last_idx - 1 > first_idx:

@@ -322,11 +322,25 @@ class MultiFlow:
 
         # Total cumulative inflow
         with open(totalCumFile, "w") as file:
-            file.write("arc total_cumulative_inflow_function")
+            file.write("arc total_cumulative_inflow_function\n")
             for e in self.network.edges:
                 v, w = e
                 s = str(v) + "," + str(w) + " "
-                breakPoints = []
+                breakPoints = [0]
+                for path in self.pathCommodityDict:
+                    if not self.edge_on_path(path, e):
+                        continue
+                    for interval, rate in self.commodityInflow[path][e].items():
+                        t_l, t_u = interval
+                        if t_l >= 0:
+                            breakPoints.append(t_l)
+                        breakPoints.append(t_u)
+                breakPoints = sorted(list(set(breakPoints)))
+                tupleList = [(x, self.cum_inflow(v, w, x)) for x in breakPoints]
+                prettyList = Utilities.cleanup_output_list(tupleList)
+
+                s = s + ",".join([str(pair) for pair in prettyList]) + "\n"
+                file.write(s)
 
     def compute(self):
         """The priority heap maintained works as follows:
