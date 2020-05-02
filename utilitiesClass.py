@@ -12,8 +12,7 @@ import time
 import matplotlib
 import networkx as nx
 import numpy as np
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle, Circle, FancyArrowPatch
+from collections import OrderedDict
 
 # ======================================================================================================================
 
@@ -101,6 +100,87 @@ class Utilities:
             return Utilities.binary_search((mid, t_u), fc, y)
         elif y_mid > y:
             return Utilities.binary_search((t_l, mid), fc, y)
+
+    @staticmethod
+    def dictInSortAdd(OD, newValues):
+        """
+        Update OrderedDict OD by valList suitable for ADDING a flow over time
+        :param OD: OrderedDict where keys are of the form (startTime, endTime) and values are flow rates s.t.
+        for (s, t): r before (s', t'):r' we have s <= t <= s' <= t'
+        :param newValues: List of values (s,t,r) that need to be added to previous dict, i.e. by adding rates at times
+        """
+        if type(newValues) is tuple:
+            newValues = [newValues]
+        newValues = sorted(newValues)
+        keyValList = [(time[0], time[1], OD[time]) for time in OD]
+        for t_0, t_1, rate in newValues:
+            if len(keyValList) == 0:
+                # Just add
+                keyValList.append((t_0, t_1, rate))
+            else:
+                staticL = list(keyValList)
+                idx = 0
+                idxShift = 0
+                while idx < len(staticL):
+                    t_l, t_u, r = staticL[idx]
+                    if t_0 == t_u:  # Edge case
+                        idx += 1
+                    elif t_l <= t_0 < t_u and t_1 <= t_u:
+                        # (t_0, t_1) completely contained in previous interval -> easy
+                        lowSplit, highSplit = (t_l < t_0), (t_1 < t_u)
+                        newL = []
+                        if lowSplit:
+                            newL.append((t_l, t_0, r))
+                        newL.append((t_0, t_1, r + rate))
+                        if highSplit:
+                            newL.append((t_1, t_u, r))
+                        keyValList[idx + idxShift:idx + idxShift + 1] = newL
+                        idxShift += len(newL) - 1
+                        t_0 = t_1
+                        break  # Nothing else to do here
+                    elif t_l <= t_0 < t_u < t_1:
+                        lowSplit = (t_l < t_0)
+                        newL = []
+                        if lowSplit:
+                            newL.append((t_l, t_0, r))
+                        newL.append((t_0, t_u, r + rate))
+                        keyValList[idx + idxShift:idx + idxShift + 1] = newL
+                        idxShift += len(newL) - 1
+                        t_0 = t_u  # Adjust interval for next iterations
+                    else:
+                        idx += 1
+                if t_0 < t_1:
+                    # Add to last case
+                    keyValList.append((t_0, t_1, rate))
+
+        OD.clear()
+        OD.update(OrderedDict([((triplet[0], triplet[1]), triplet[2]) for triplet in keyValList]))
+
+    @staticmethod
+    def dictInSort(OD, newValues):
+        """
+        Update OrderedDict OD by valList suitable for inserting a flow over time
+        :param OD: OrderedDict where keys are of the form (startTime, endTime) s.t.
+        for (s, t): r before (s', t'):r' we have s <= t <= s' <= t'
+        :param newValues: List of values (s,t,val) that need to be added to previous dict, i.e. by inserting val at times
+        """
+        if type(newValues) is tuple:
+            newValues = [newValues]
+        newValues = sorted(newValues)
+        keyValList = [(time[0], time[1], OD[time]) for time in OD]
+        for t_0, t_1, rate in newValues:
+            if len(keyValList) == 0:
+                # Just add
+                keyValList.append((t_0, t_1, rate))
+            else:
+                t_l, t_u, _ = keyValList[-1]
+                if t_u <= t_0:
+                    keyValList.append((t_0, t_1, rate))
+                elif t_0 <= t_u < t_1:
+                    keyValList.append((t_u, t_1, rate))
+
+        OD.clear()
+        OD.update(OrderedDict([((triplet[0], triplet[1]), triplet[2]) for triplet in keyValList]))
 
     @staticmethod
     def get_edge_label_rotation(axes, src, dst, pos):
