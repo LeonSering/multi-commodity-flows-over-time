@@ -187,11 +187,35 @@ class Utilities:
                 finalList.append((x, y))
             first_idx = last_idx
 
+        # Find linear segments
+        tupleList = finalList
+        finalList = []
+        slope = lambda a, b: float(b[1]-a[1])/(b[0]-a[0])
+        first_idx = 0
+        while first_idx <= len(tupleList) - 2:
+            x_0, y_0 = tupleList[first_idx]
+            x_1, y_1 = tupleList[first_idx + 1]
+            m_l = slope((x_0, y_0), (x_1, y_1))
+            last_idx = first_idx + 1
+            while last_idx <= len(tupleList) - 1 \
+                    and Utilities.is_eq_tol(m_l, slope((x_0, y_0), tupleList[last_idx]), tol=1e-4) \
+                    and tupleList[last_idx][1] < float('inf'):
+                last_idx += 1
+            finalList.append((x_0, y_0))
+            x, y = tupleList[last_idx - 1]
+            finalList.append((x, y))
+            first_idx = last_idx
+        finalList.append(tupleList[-1])
+
         prettyList = []
         for x, y in finalList:
             if x < float('inf') and int(x) == x:
                 x = int(x)
+            elif x < float('inf'):
+                x = float(str("%.2f" % x))
             if int(y) == y:
                 y = int(y)
+            else:
+                y = float(str("%.2f" % y))
             prettyList.append((x, y))
         return prettyList
