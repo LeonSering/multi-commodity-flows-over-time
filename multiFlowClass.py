@@ -166,9 +166,21 @@ class MultiFlow:
             if Utilities.is_greater_tol(timeToVanish, 0.0):
                 alpha = min(alpha, timeToVanish)
 
+            phi = round(self.inverse_travel_time(e, theta), 6)
+            inflow_e = self.inflow_rate(e, phi)
+            if Utilities.is_greater_tol(inflow_e, 0.0):
+                for path in self.pathCommodityDict:
+                    if self.edge_on_path(path, e):
+                        # TODO: This might cause problems w/ spillback if outflow of commodity changes within phase
+                        inflow_ratio = float(self.inflow_rate(e, phi, commodityPath=path)) / inflow_e
+                        outflow_com = inflow_ratio * self.network[u][v]['outCapacity']
+                        if Utilities.is_greater_tol(outflow_com, 0.0):
+                            timeToVanish = self.queue_size(e, theta, commodityPath=path) / outflow_com
+                            if Utilities.is_greater_tol(timeToVanish, 0.0):
+                                alpha = min(alpha, timeToVanish)
         return alpha
 
-    def cum_inflow(self, v, w, t, commodityPath=None):
+    def cum_inflow(self, v, w, t, commodityPath = None):
         """
         :param v: tail of edge
         :param w: head of edge
@@ -195,7 +207,7 @@ class MultiFlow:
                     break
         return s
 
-    def cum_outflow(self, v, w, t):
+    def cum_outflow(self, v, w, t, commodityPath = None):
         """
         :param v: tail of edge
         :param w: head of edge
@@ -206,7 +218,8 @@ class MultiFlow:
             return 0
         e = (v, w)
         s = 0
-        for path in self.commodityOutflow:
+        paths = self.commodityOutflow if not commodityPath else [commodityPath]
+        for path in paths:
             for interval, outflowVal in self.commodityOutflow[path][e].items():
                 t_l, t_u = interval
                 if t_l == -float('inf') or t_u == float('inf'):
@@ -221,13 +234,13 @@ class MultiFlow:
                     break
         return s
 
-    def queue_size(self, e, t):
-        """Returns z_e(t)"""
+    def queue_size(self, e, t, commodityPath = None):
+        """Returns z_e(t). If commodyPath given, get just the values for that commodity"""
         v, w = e
         tau = self.network[v][w]['transitTime']
-        return float(self.cum_inflow(v, w, t - tau) - self.cum_outflow(v, w, t))
+        return float(self.cum_inflow(v, w, t - tau, commodityPath=commodityPath) - self.cum_outflow(v, w, t, commodityPath=commodityPath))
 
-    def inflow_rate(self, e, t, commodityPath=None):
+    def inflow_rate(self, e, t, commodityPath = None):
         """Returns f^+_e(t)"""
         r = 0
         paths = self.commodityInflow if not commodityPath else [commodityPath]
@@ -239,10 +252,11 @@ class MultiFlow:
                     break
         return r
 
-    def outflow_rate(self, e, t):
+    def outflow_rate(self, e, t, commodityPath = None):
         """Returns f^+_e(t)"""
         r = 0
-        for path in self.commodityOutflow:
+        paths = self.commodityOutflow if not commodityPath else [commodityPath]
+        for path in paths:
             for interval, flowRate in self.commodityOutflow[path][e].items():
                 t_l, t_u = interval
                 if t_l <= t < t_u:
@@ -416,7 +430,7 @@ class MultiFlow:
         debugBound = 51
         idx = 1
         while self.priority:
-            if idx == debugBound:
+            if idx == 36:
                 print("DEBUGGING POINT")
             print("Iteration ", idx)
             print("PQ: ", self.priority)
@@ -502,6 +516,8 @@ class MultiFlow:
 
             print("-----------------------------------------------------")
             idx += 1
+        for path in self.commodityInflow:
+            print(self.commodityInflow[path][('2', '3')])
 
 
 
