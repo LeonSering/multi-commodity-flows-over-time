@@ -374,10 +374,10 @@ class MultiFlow:
             file.write("path path_travel_time\n")
             for path in self.pathCommodityDict:
                 s = ",".join([str(node) for node in path]) + " "
+                breakPoints = [0]
                 for i in range(len(path)-1):
                     v, w = path[i], path[i+1]
                     e = (v, w)
-                    breakPoints = [0]
                     for interval, rate in self.commodityInflow[path][e].items():
                         t_l, t_u = interval
                         if t_l >= 0:
@@ -394,6 +394,7 @@ class MultiFlow:
                 tupleList = [(x, self.path_travel_time(path, x)) for x in breakPoints]
                 prettyList = Utilities.cleanup_output_list(tupleList)
                 prettyList = prettyList[:-1]
+                prettyList.append((float('inf'), prettyList[-1][1]))
 
                 s = s + ",".join([str(pair) for pair in prettyList]) + "\n"
                 file.write(s)
