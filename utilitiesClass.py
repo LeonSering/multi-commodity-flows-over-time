@@ -191,31 +191,31 @@ class Utilities:
         tupleList = finalList
         finalList = []
         slope = lambda a, b: float(b[1]-a[1])/(b[0]-a[0])
+
         first_idx = 0
-        while first_idx <= len(tupleList) - 2:
+        while first_idx <= len(tupleList) - 1:
+            if first_idx == len(tupleList) - 1:
+                finalList.append(tupleList[first_idx])
+                break
+            elif first_idx == len(tupleList) - 2:
+                finalList.append(tupleList[first_idx + 1])
+                break
+            # first_idx <= len(tupleList) - 3
             x_0, y_0 = tupleList[first_idx]
+            if first_idx == 0:
+                finalList.append((x_0, y_0))
             last_idx = first_idx + 1
             x_1, y_1 = tupleList[last_idx]
             m_l = slope((x_0, y_0), (x_1, y_1))
-
-            if x_1 == float('inf'):
-                # We look at the last two pairs
-                finalList.append((x_0, y_0))
-                finalList.append((x_1, y_1))
-                break
 
             while last_idx <= len(tupleList) - 1 \
                     and Utilities.is_eq_tol(m_l, slope((x_0, y_0), tupleList[last_idx]), tol=1e-4)\
                     and tupleList[last_idx][0] < float('inf'):
                 last_idx += 1
-            finalList.append((x_0, y_0))
-            x, y = tupleList[last_idx - 1]
-            first_idx = last_idx
-            finalList.append((x, y))
 
-            if last_idx <= len(tupleList) - 1 and tupleList[last_idx][0] == float('inf'):
-                # If last element is the only one left
-                finalList.append((tupleList[last_idx]))
+            x, y = tupleList[last_idx - 1]
+            finalList.append((x, y))
+            first_idx = last_idx - 1
 
         prettyList = []
         for x, y in finalList:
