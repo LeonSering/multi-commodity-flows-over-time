@@ -281,7 +281,7 @@ class MultiFlow:
             v, w = path[i], path[i+1]
             e = (v, w)
             headArrivalTime = self.travel_time(e, headArrivalTime)
-        return headArrivalTime
+        return headArrivalTime - t
 
     def travel_time(self, e, t):
         """Returns T_e(t) = t + tau_e + q_e(t)"""
