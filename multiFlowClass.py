@@ -517,8 +517,6 @@ class MultiFlow:
 
             print("-----------------------------------------------------")
             idx += 1
-        for path in self.commodityInflow:
-            print(self.commodityInflow[path][('2', '3')])
 
 
 
