@@ -50,7 +50,6 @@ class MultiFlow:
                 1: "Transittime must be greater than zero for all edges.",
                 2: "Storage of initial edges (of commodities) have to be infinite.",
                 3: "Incapacities of initial edges (of commodities) have to be infinite.",
-                4: "Graph must be acyclic." # TODO: Relaxable assumption?
             }
 
             return errorDescription[errorCode]
@@ -70,12 +69,15 @@ class MultiFlow:
                 return get_error_message(3)
             #mergedFlows[(v, w)] = []
 
+        """
         try:
             nx.find_cycle(self.network)
             return get_error_message(4)
         except nx.NetworkXNoCycle:
             pass
+        """
         return 0
+
 
     def init_values(self, t, startingEdges, isolatedNodes):
         """Init f, c, b up to initialTime t using the fact that we have known startingEdges and isolatedNodes"""
@@ -423,8 +425,13 @@ class MultiFlow:
         # hasOutgoingFull: integer value of boolean status whether node has outgoing edges that are currently full
         # topologicalDistance: Topological ordering in reverse order (being far away top. is preferred)
         # priority decreases with position in heap tuple, i.e. topologicalDistance is tie breaker for hasOutgoingFull
-        topologicalSort = [node for node in reversed(list(nx.topological_sort(self.network))) if node not in isoNodes]
-        topologicalDistance = dict((node, idx) for idx, node in enumerate(topologicalSort))
+        """
+        try:
+            topologicalSort = [node for node in reversed(list(nx.topological_sort(self.network))) if node not in isoNodes]
+            topologicalDistance = dict((node, idx) for idx, node in enumerate(topologicalSort))
+        except:
+        """
+        topologicalDistance = dict((node, 0) for node in self.network.nodes if node not in isoNodes)
         self.priority = [(initialTime, 0, topologicalDistance[node], node) for node in self.network.nodes if node not in isoNodes]
         heapq.heapify(self.priority)
 
