@@ -48,8 +48,7 @@ class MultiFlow:
         def get_error_message(errorCode):
             errorDescription = {
                 1: "Transittime must be greater than zero for all edges.",
-                2: "Storage of initial edges (of commodities) have to be infinite.",
-                3: "Incapacities of initial edges (of commodities) have to be infinite.",
+                2: "Incapacities of initial edges (of commodities) have to be infinite.",
             }
 
             return errorDescription[errorCode]
@@ -59,15 +58,10 @@ class MultiFlow:
             if self.network[v][w]['transitTime'] <= 0:
                 return get_error_message(1)
 
-        #mergedFlows = {}
-
         for path in self.pathCommodityDict:
             v, w = path[0], path[1]
-            if self.network[v][w]['storage'] < float('inf'):
-                return get_error_message(2)
             if self.network[v][w]['inCapacity'] < float('inf'):
-                return get_error_message(3)
-            #mergedFlows[(v, w)] = []
+                return get_error_message(2)
 
         """
         try:
@@ -435,10 +429,10 @@ class MultiFlow:
         self.priority = [(initialTime, 0, topologicalDistance[node], node) for node in self.network.nodes if node not in isoNodes]
         heapq.heapify(self.priority)
 
-        debugBound = 51
+        debugBound = 220
         idx = 1
         while self.priority:
-            if idx == 36:
+            if idx == debugBound:
                 print("DEBUGGING POINT")
             print("Iteration ", idx)
             print("PQ: ", self.priority)
