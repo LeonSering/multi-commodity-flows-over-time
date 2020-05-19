@@ -163,11 +163,17 @@ class Utilities:
                 # Just add
                 keyValList.append((t_0, t_1, rate))
             else:
-                t_l, t_u, _ = keyValList[-1]
+                t_l, t_u, r = keyValList[-1]
                 if t_u <= t_0:
-                    keyValList.append((t_0, t_1, rate))
+                    if t_u == t_0 and r == rate:
+                        keyValList[-1] = (t_l, t_1, rate)
+                    else:
+                        keyValList.append((t_0, t_1, rate))
                 elif t_0 <= t_u < t_1:
-                    keyValList.append((t_u, t_1, rate))
+                    if r == rate:
+                        keyValList[-1] = (t_l, t_1, rate)
+                    else:
+                        keyValList.append((t_u, t_1, rate))
 
         OD.clear()
         OD.update(OrderedDict([((triplet[0], triplet[1]), triplet[2]) for triplet in keyValList]))

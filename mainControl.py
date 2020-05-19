@@ -9,6 +9,8 @@ from argparse import ArgumentParser
 import pickle
 import sys
 import os
+import timeit
+
 
 def load_graph(path):
     """
@@ -62,7 +64,12 @@ inflowFile = args.inflowFile
 
 # Main
 mf = read_files(networkFile, inflowFile)
+print("Starting computation.\n")
 mf.compute()
 baseName = os.path.basename(networkFile)
 baseName = baseName[:baseName.rfind(".")]
+print("Generating output.\n")
+startTime = timeit.default_timer()
 mf.generate_output(os.path.dirname(os.path.abspath(networkFile)), baseName)
+endTime = timeit.default_timer()
+print("Finished generating output. Total elapsed: {0:.2f} seconds".format(endTime-startTime))

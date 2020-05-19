@@ -74,7 +74,6 @@ class MultiFlow:
         minInf = -float('inf')
         maxInf = float('inf')
 
-
         # Init dictionaries
         for path in self.pathCommodityDict:
             self.commodityInflow[path] = {edge:OrderedDict() for edge in self.network.edges}
@@ -416,7 +415,9 @@ class MultiFlow:
         debugBound = 220    # The outflow computation is flawed
         idx = 1
         startTime = timeit.default_timer()
-        while self.priority and idx <= 5000:
+        while self.priority:
+            if idx == 10000:
+                print("Debugging point")
             #print("Iteration ", idx)
             #print("PQ: ", self.priority)
             # Access first element of heap
@@ -490,7 +491,7 @@ class MultiFlow:
                 heapq.heappush(self.priority, (theta_new, hasOutgoingFull_new, topDist, v))
 
             #print("-----------------------------------------------------")
-            if idx % 20 == 1 or len(self.priority) == 0:
+            if idx % 100 == 1 or len(self.priority) == 0:
                 print("Iteration {0:d}: Node {1} | Theta {2:.2f} | Alpha {3:.2f} | {4:d} nodes in queue".format(idx, v, theta, alpha, len(self.priority)))
             idx += 1
         endTime = timeit.default_timer()
