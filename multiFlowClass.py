@@ -460,15 +460,11 @@ class MultiFlow:
         idx = 1
         startTime = timeit.default_timer()
         while self.priority:
-            if idx == 41:
-                print("Debugging point")
             #print("Iteration ", idx)
             #print("PQ: ", self.priority)
             # Access first element of heap
             theta, hasOutgoingFull, topDist, v = heapq.heappop(self.priority)
             #print("v: ", v, " theta: ", theta)
-            if idx >= 20000 and v == "31123544_27271174":
-                print("Debugging point")
             #print("\nSTEP 1")
             # STEP 1: Compute alpha extension size
             in_edges = list(self.network.in_edges(v))
