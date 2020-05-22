@@ -26,6 +26,7 @@ class MultiFlow:
         self.priority = None
         self.commodityInflow = dict()
         self.commodityOutflow = dict()
+        self.hasBeenActive = dict()
         self.bIn = {edge:OrderedDict() for edge in self.network.edges} # b^+_e
         self.bOut = {edge:OrderedDict() for edge in self.network.edges} # b^-_e
 
@@ -78,6 +79,7 @@ class MultiFlow:
         for path in self.pathCommodityDict:
             self.commodityInflow[path] = {edge:OrderedDict() for edge in self.network.edges}
             self.commodityOutflow[path] = {edge:OrderedDict() for edge in self.network.edges}
+            self.hasBeenActive[path] = {edge:False for edge in self.network.edges}
 
         for e in self.network.edges:
             v, w = e
@@ -130,14 +132,14 @@ class MultiFlow:
                 partAlpha = 0
                 lastRate = None
                 found = False
-                for interval in self.commodityInflow[path][e]:
+                for interval, rate in self.commodityInflow[path][e].items():
                     t_l, t_u = interval
                     if t_l <= t < t_u:
-                        lastRate = self.commodityInflow[path][e][interval]
+                        lastRate = rate
                         partAlpha += t_u - t
                         found = True
                     elif found:
-                        if lastRate == self.commodityInflow[path][e][interval]:
+                        if lastRate == rate:
                             # We can extend further
                             partAlpha += t_u - t_l
                         else:
@@ -146,11 +148,17 @@ class MultiFlow:
                 alpha = min(alpha, partAlpha)
 
             # Find maximal alpha such that queues do not vanish
-            timeToVanish = self.queue_size(e, theta) / self.network[u][v]['outCapacity']
-            if Utilities.is_greater_tol(timeToVanish, 0.0):
-                alpha = min(alpha, timeToVanish)
+            qSize = self.queue_size(e, theta)
+            if Utilities.is_greater_tol(qSize, 0.0):
+                output = self.network[u][v]['outCapacity']  # Constant as long as there is queue
+                input = self.inflow_rate(e, theta - tau)    # Note that this is constant in this alpha phase
+                vanishRate = float(output - input)
+                if Utilities.is_greater_tol(vanishRate, 0.0):
+                    # The queue decreases.
+                    # Otherwise the queue increases and hence we do not have to worry about it vanishing
+                    alpha = min(alpha, qSize/vanishRate)
 
-            phi = round(self.inverse_travel_time(e, theta), 6)
+            phi = self.inverse_travel_time(e, theta)
             inflow_e = self.inflow_rate(e, phi)
             if Utilities.is_greater_tol(inflow_e, 0.0):
                 for path in self.pathCommodityDict:
@@ -161,7 +169,40 @@ class MultiFlow:
                             timeToVanish = self.queue_size(e, theta, commodityPath=path) / outflow_com
                             if Utilities.is_greater_tol(timeToVanish, 0.0):
                                 alpha = min(alpha, timeToVanish)
+
+            """
+            phi = self.inverse_travel_time(e, theta)
+            inflow_e = self.inflow_rate(e, phi)
+            if Utilities.is_greater_tol(inflow_e, 0.0):
+                for path in self.pathCommodityDict:
+                    if self.edge_on_path(path, e):
+                        qSize = self.queue_size(e, theta, commodityPath=path)
+                        if Utilities.is_greater_tol(qSize, 0.0):
+                            input = float(self.inflow_rate(e, phi, commodityPath=path))
+                            if Utilities.is_greater_tol(input, 0.0):
+                                inflow_ratio = input / inflow_e
+                                output = inflow_ratio * self.network[u][v]['outCapacity']
+                                vanishRate = float(output - input)
+                                alpha_const = self.time_to_inflow_change(e, phi)
+                                alpha = min(alpha, alpha_const)
+                                if Utilities.is_greater_tol(vanishRate, 0.0):
+                                    alpha = min(alpha, qSize/vanishRate)
+            """
+
         return alpha
+
+    def time_to_inflow_change(self, e, t, commodityPath = None):
+        """Returns the maximum known alpha such that the inflow of e is constant on [t, t + alpha["""
+        r = float('inf')
+        paths = self.commodityInflow if not commodityPath else [commodityPath]
+        for path in paths:
+            if self.edge_on_path(path, e):
+                for interval, flowRate in reversed(self.commodityInflow[path][e].items()):
+                    t_l, t_u = interval
+                    if Utilities.is_between_tol(t_l, t, t_u):
+                        r = min(r, t_u - t)
+                        break
+        return r
 
     def cum_inflow(self, v, w, t, commodityPath = None):
         """
@@ -284,15 +325,19 @@ class MultiFlow:
                 t_l, t_u = interval
                 T_l, T_u = self.travel_time(e, t_l), self.travel_time(e, t_u)
                 if T_l <= theta <= T_u:
-                    # Must lie in this interval -> binary search
-                    phi = Utilities.binary_search((t_l, t_u), lambda t: self.travel_time(e, t), theta)
+                    if Utilities.is_eq_tol(T_l, theta, tol=1e-6):
+                        phi = t_l
+                    elif Utilities.is_eq_tol(T_u, theta, tol=1e-6):
+                        phi = t_u
+                    else:
+                        # Must lie in this interval -> binary search
+                        phi = Utilities.binary_search((t_l, t_u), lambda t: self.travel_time(e, t), theta)
                     return phi
                 elif theta > T_u:
                     # Maybe check other path
                     break
                 elif theta < T_l:
                     continue
-
 
     def generate_output(self, filePath, baseName):
         """Outputs the following:
@@ -350,9 +395,8 @@ class MultiFlow:
         # Path travel times
         with open(pathTTFile, "w") as file:
             file.write("path path_travel_time\n")
+            breakPoints = [0]
             for path in self.pathCommodityDict:
-                s = ",".join([str(node) for node in path]) + " "
-                breakPoints = [0]
                 for i in range(len(path)-1):
                     v, w = path[i], path[i+1]
                     e = (v, w)
@@ -368,7 +412,9 @@ class MultiFlow:
                             breakPoints.append(t_l)
                         if t_u < float('inf'):
                             breakPoints.append(t_u)
-                breakPoints = sorted(list(set(breakPoints)))
+            breakPoints = sorted(list(set(breakPoints)))
+            for path in self.pathCommodityDict:
+                s = ",".join([str(node) for node in path]) + " "
                 tupleList = [(x, self.path_travel_time(path, x)) for x in breakPoints]
                 prettyList = Utilities.cleanup_output_list(tupleList)
                 prettyList = prettyList[:-1]
@@ -376,8 +422,6 @@ class MultiFlow:
 
                 s = s + ",".join([str(pair) for pair in prettyList]) + "\n"
                 file.write(s)
-
-
 
     def compute(self):
         """The priority heap maintained works as follows:
@@ -416,14 +460,15 @@ class MultiFlow:
         idx = 1
         startTime = timeit.default_timer()
         while self.priority:
-            if idx == 10000:
+            if idx == 41:
                 print("Debugging point")
             #print("Iteration ", idx)
             #print("PQ: ", self.priority)
             # Access first element of heap
             theta, hasOutgoingFull, topDist, v = heapq.heappop(self.priority)
             #print("v: ", v, " theta: ", theta)
-
+            if idx >= 20000 and v == "31123544_27271174":
+                print("Debugging point")
             #print("\nSTEP 1")
             # STEP 1: Compute alpha extension size
             in_edges = list(self.network.in_edges(v))
@@ -444,10 +489,11 @@ class MultiFlow:
                 #print("Outflow_e: ", outflow_e)
                 if Utilities.is_eq_tol(0, outflow_e, tol=1e-6):
                     for path in self.commodityOutflow:
-                        Utilities.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0.0))
+                        upper = float('inf') if self.hasBeenActive[path][e] else theta + alpha
+                        Utilities.dictInSort(self.commodityOutflow[path][e], (theta, upper, 0.0))
                 else:
                     # We need to find phi s.t. T_e(phi) = theta
-                    phi = round(self.inverse_travel_time(e, theta), 6)
+                    phi = self.inverse_travel_time(e, theta)
                     #print("Phi: ", phi)
                     #print("T_e(phi): ", self.travel_time(e, phi))
                     for path in self.commodityOutflow:
@@ -455,12 +501,14 @@ class MultiFlow:
                             continue
                         inflow_e = self.inflow_rate(e, phi)
                         if Utilities.is_eq_tol(0, inflow_e, tol=1e-4):
-                            Utilities.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, 0.0))
+                            upper = float('inf') if self.hasBeenActive[path][e] else theta + alpha
+                            Utilities.dictInSort(self.commodityOutflow[path][e], (theta, upper, 0.0))
                         else:
                             inflow_ratio = float(self.inflow_rate(e, phi, commodityPath=path))/inflow_e
                             outflow_ext = inflow_ratio * outflow_e
-                            #print("Outflow_ext: ", outflow_ext)
-                            Utilities.dictInSort(self.commodityOutflow[path][e], (theta, theta + alpha, outflow_ext))
+                            upper = float('inf') if self.hasBeenActive[path][e] and Utilities.is_eq_tol(outflow_ext, 0.0) else theta + alpha
+                            Utilities.dictInSort(self.commodityOutflow[path][e], (theta, upper, outflow_ext))
+                            if Utilities.is_greater_tol(outflow_ext, 0.0): self.hasBeenActive[path][e] = True
 
                 # STEP 3: Extend inflow rates along commodity paths
                 for path in self.commodityOutflow:
@@ -491,7 +539,7 @@ class MultiFlow:
                 heapq.heappush(self.priority, (theta_new, hasOutgoingFull_new, topDist, v))
 
             #print("-----------------------------------------------------")
-            if idx % 100 == 1 or len(self.priority) == 0:
+            if idx % 20 == 1 or len(self.priority) == 0:
                 print("Iteration {0:d}: Node {1} | Theta {2:.2f} | Alpha {3:.2f} | {4:d} nodes in queue".format(idx, v, theta, alpha, len(self.priority)))
             idx += 1
         endTime = timeit.default_timer()

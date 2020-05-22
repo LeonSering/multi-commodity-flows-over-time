@@ -84,7 +84,7 @@ class Utilities:
 
         mid = float(t_u+t_l)/2
         y_mid = fc(mid)
-        if Utilities.is_eq_tol(y, y_mid, tol=1e-9):
+        if Utilities.is_eq_tol(y, y_mid, tol=1e-5):
             return mid  # Solution found
         elif y_mid < y:
             return Utilities.binary_search((mid, t_u), fc, y)
@@ -198,7 +198,11 @@ class Utilities:
         finalList = []
         slope = lambda a, b: float(b[1]-a[1])/(b[0]-a[0])
 
-        first_idx = 0
+        if len(tupleList) <= 2:
+            first_idx = len(tupleList)
+            finalList = tupleList
+        else:
+            first_idx = 0
         while first_idx <= len(tupleList) - 1:
             if first_idx == len(tupleList) - 1:
                 finalList.append(tupleList[first_idx])
