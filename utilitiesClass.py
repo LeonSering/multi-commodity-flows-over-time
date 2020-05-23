@@ -84,7 +84,7 @@ class Utilities:
 
         mid = float(t_u+t_l)/2
         y_mid = fc(mid)
-        if Utilities.is_eq_tol(y, y_mid, tol=1e-5):
+        if Utilities.is_eq_tol(y, y_mid, tol=1e-3):
             return mid  # Solution found
         elif y_mid < y:
             return Utilities.binary_search((mid, t_u), fc, y)

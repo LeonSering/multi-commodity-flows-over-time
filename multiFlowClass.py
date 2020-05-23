@@ -466,6 +466,8 @@ class MultiFlow:
             theta, hasOutgoingFull, topDist, v = heapq.heappop(self.priority)
             #print("v: ", v, " theta: ", theta)
             #print("\nSTEP 1")
+            if idx == 668:
+                print("debugger")
             # STEP 1: Compute alpha extension size
             in_edges = list(self.network.in_edges(v))
             alpha = self.compute_alpha(theta, v, in_edges)
