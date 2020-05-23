@@ -273,21 +273,10 @@ class MultiFlow:
         r = 0
         paths = self.commodityInflow if not commodityPath else [commodityPath]
         for path in paths:
-            for interval, flowRate in self.commodityInflow[path][e].items():
+            for interval, flowRate in reversed(self.commodityInflow[path][e].items()):
                 t_l, t_u = interval
-                if t_l <= t < t_u:
-                    r += flowRate
-                    break
-        return r
-
-    def outflow_rate(self, e, t, commodityPath = None):
-        """Returns f^+_e(t)"""
-        r = 0
-        paths = self.commodityOutflow if not commodityPath else [commodityPath]
-        for path in paths:
-            for interval, flowRate in self.commodityOutflow[path][e].items():
-                t_l, t_u = interval
-                if t_l <= t < t_u:
+                if Utilities.is_between_tol(t_l, t, t_u):
+                #if t_l <= t < t_u:
                     r += flowRate
                     break
         return r
@@ -457,8 +446,7 @@ class MultiFlow:
         self.priority = [(initialTime, 0, topologicalDistance[node], node) for node in self.network.nodes if node not in isoNodes]
         heapq.heapify(self.priority)
 
-        #debugBound = 75    # Queue size becomes negative for the first time
-        debugBound = 220    # The outflow computation is flawed
+
         idx = 1
         startTime = timeit.default_timer()
         while self.priority:
@@ -468,8 +456,6 @@ class MultiFlow:
             theta, hasOutgoingFull, topDist, v = heapq.heappop(self.priority)
             #print("v: ", v, " theta: ", theta)
             #print("\nSTEP 1")
-            if idx == 126:
-                print("debugger")
             # STEP 1: Compute alpha extension size
             in_edges = list(self.network.in_edges(v))
             alpha = self.compute_alpha(theta, v, in_edges)
@@ -538,9 +524,7 @@ class MultiFlow:
                 hasOutgoingFull_new = 0 # TODO: This needs to be done!
                 heapq.heappush(self.priority, (theta_new, hasOutgoingFull_new, topDist, v))
 
-            #print("-----------------------------------------------------")
-            #idx % 20 == 1
-            if True or len(self.priority) == 0:
+            if idx % 20 == 1 or len(self.priority) == 0:
                 print("Iteration {0:d}: Node {1} | Theta {2:.2f} | Alpha {3:.2f} | {4:d} nodes in queue".format(idx, v, theta, alpha, len(self.priority)))
             idx += 1
         endTime = timeit.default_timer()
