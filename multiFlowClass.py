@@ -129,12 +129,14 @@ class MultiFlow:
 
             # Find maximal alpha such that commodity flows stay constant
             for path in self.pathCommodityDict:
+                if not self.edge_on_path(path, e):
+                    continue
                 partAlpha = 0
                 lastRate = None
                 found = False
                 for interval, rate in self.commodityInflow[path][e].items():
                     t_l, t_u = interval
-                    if t_l <= t < t_u:
+                    if Utilities.is_leq_tol(t_l, t) and Utilities.is_greater_tol(t_u, t):
                         lastRate = rate
                         partAlpha += t_u - t
                         found = True
@@ -466,7 +468,7 @@ class MultiFlow:
             theta, hasOutgoingFull, topDist, v = heapq.heappop(self.priority)
             #print("v: ", v, " theta: ", theta)
             #print("\nSTEP 1")
-            if idx == 668:
+            if idx == 126:
                 print("debugger")
             # STEP 1: Compute alpha extension size
             in_edges = list(self.network.in_edges(v))
@@ -537,7 +539,8 @@ class MultiFlow:
                 heapq.heappush(self.priority, (theta_new, hasOutgoingFull_new, topDist, v))
 
             #print("-----------------------------------------------------")
-            if idx % 20 == 1 or len(self.priority) == 0:
+            #idx % 20 == 1
+            if True or len(self.priority) == 0:
                 print("Iteration {0:d}: Node {1} | Theta {2:.2f} | Alpha {3:.2f} | {4:d} nodes in queue".format(idx, v, theta, alpha, len(self.priority)))
             idx += 1
         endTime = timeit.default_timer()
