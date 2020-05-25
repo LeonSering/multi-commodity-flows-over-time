@@ -139,3 +139,5 @@ dmypy.json
 
 /examples/
 /tests/simple_merge/simple_merge-*
+/tests/debugging/
+/tests/matsim-paper/
