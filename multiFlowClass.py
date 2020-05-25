@@ -389,6 +389,8 @@ class MultiFlow:
             file.write("path path_travel_time\n")
             breakPoints = [0]
             for path in self.pathCommodityDict:
+                if path == ('D', 'C', 'v2', 'B', 'v1'):
+                    print("debugging")
                 for i in range(len(path)-1):
                     v, w = path[i], path[i+1]
                     e = (v, w)
@@ -405,8 +407,8 @@ class MultiFlow:
                         if t_u < float('inf'):
                             breakPoints.append(t_u)
             breakPoints = sorted(list(set(breakPoints)))
-            minB, maxB = min(breakPoints), max(breakPoints)
-            breakPoints = list(np.linspace(minB, maxB, num=10000))
+            #minB, maxB = min(breakPoints), max(breakPoints)
+            #breakPoints = list(np.linspace(minB, maxB, num=10000))
             for path in self.pathCommodityDict:
                 s = ",".join([str(node) for node in path]) + " "
                 tupleList = [(x, self.path_travel_time(path, x)) for x in breakPoints]
