@@ -179,6 +179,21 @@ class Utilities:
         OD.update(OrderedDict([((triplet[0], triplet[1]), triplet[2]) for triplet in keyValList]))
 
     @staticmethod
+    def get_unique_tol(L, tol=TOL):
+        """Cleanup sorted list L from duplicates (wrt tolerance tol), keeping the order"""
+        final = []
+        while L:
+            first = L.pop(0)
+            final.append(first)
+            for item in list(L):
+                if Utilities.is_eq_tol(first, item, tol=tol):
+                    L.remove(item)
+                else:
+                    # This is strictly bigger and hence all elements coming after that
+                    break
+        return final
+
+    @staticmethod
     def cleanup_output_list(tupleList):
         finalList = []
         first_idx = 0

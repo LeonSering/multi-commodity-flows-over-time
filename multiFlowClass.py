@@ -387,34 +387,37 @@ class MultiFlow:
         # Path travel times
         with open(pathTTFile, "w") as file:
             file.write("path path_travel_time\n")
-            breakPoints = [0]
             for path in self.pathCommodityDict:
+                breakPoints = [0.0]
                 if path == ('D', 'C', 'v2', 'B', 'v1'):
                     print("debugging")
-                for i in range(len(path)-1):
+                for i in reversed(range(len(path)-1)):
                     v, w = path[i], path[i+1]
                     e = (v, w)
-                    for interval, rate in self.commodityInflow[path][e].items():
-                        t_l, t_u = interval
-                        if t_l >= 0:
-                            breakPoints.append(t_l)
-                        if t_u < float('inf'):
-                            breakPoints.append(t_u)
-                    for interval, rate in self.commodityOutflow[path][e].items():
-                        t_l, t_u = interval
-                        if t_l >= 0:
-                            breakPoints.append(t_l)
-                        if t_u < float('inf'):
-                            breakPoints.append(t_u)
-            breakPoints = sorted(list(set(breakPoints)))
-            #minB, maxB = min(breakPoints), max(breakPoints)
-            #breakPoints = list(np.linspace(minB, maxB, num=10000))
-            for path in self.pathCommodityDict:
+                    for xPath in self.pathCommodityDict:
+                        if self.edge_on_path(xPath, e):
+                            for interval in self.commodityInflow[xPath][e].keys():
+                                t_l, t_u = interval
+                                breakPoints = breakPoints + [t_l, t_u]
+                            for interval in self.commodityOutflow[xPath][e].keys():
+                                t_l, t_u = interval
+                                breakPoints = breakPoints + [t_l, t_u]
+                    breakPoints = sorted(list(set(breakPoints)))
+                    breakPoints = [bp for bp in breakPoints if 0.0 <= bp < float('inf')]
+
+                    #v, w = path[i], path[i+1]
+                    #e = (v, w)
+                    breakPoints = breakPoints + [self.inverse_travel_time(e, bp) for bp in breakPoints]
+                    breakPoints = sorted(list(set([bp for bp in breakPoints if 0.0 <= bp < float('inf')])))
+                breakPoints = Utilities.get_unique_tol(L=breakPoints, tol=1e-4)
+
                 s = ",".join([str(node) for node in path]) + " "
                 tupleList = [(x, self.path_travel_time(path, x)) for x in breakPoints]
                 prettyList = Utilities.cleanup_output_list(tupleList)
                 prettyList = prettyList[:-1]
                 prettyList.append((float('inf'), prettyList[-1][1]))
+                if len(prettyList) > 2 and Utilities.is_eq_tol(prettyList[-1][1], prettyList[-3][1]):
+                    prettyList.pop(-3)
 
                 s = s + ",".join([str(pair) for pair in prettyList]) + "\n"
                 file.write(s)
@@ -455,6 +458,8 @@ class MultiFlow:
         idx = 1
         startTime = timeit.default_timer()
         while self.priority:
+            if idx == 587:
+                print("debug")
             #print("Iteration ", idx)
             #print("PQ: ", self.priority)
             # Access first element of heap
