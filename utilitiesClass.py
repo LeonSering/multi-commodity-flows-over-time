@@ -234,7 +234,7 @@ class Utilities:
             m_l = slope((x_0, y_0), (x_1, y_1))
 
             while last_idx <= len(tupleList) - 1 \
-                    and Utilities.is_eq_tol(m_l, slope((x_0, y_0), tupleList[last_idx]), tol=1e-4)\
+                    and Utilities.is_eq_tol(m_l, slope((x_0, y_0), tupleList[last_idx]), tol=1e-5)\
                     and tupleList[last_idx][0] < float('inf'):
                 last_idx += 1
 
@@ -247,10 +247,10 @@ class Utilities:
             if x < float('inf') and int(x) == x:
                 x = int(x)
             elif x < float('inf'):
-                x = float(str("%.2f" % x))
+                x = float(str("%.4f" % x))
             if int(y) == y:
                 y = int(y)
             else:
-                y = float(str("%.2f" % y))
+                y = float(str("%.4f" % y))
             prettyList.append((x, y))
         return prettyList
