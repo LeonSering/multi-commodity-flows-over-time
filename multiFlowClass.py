@@ -160,7 +160,7 @@ class MultiFlow:
                     # Otherwise the queue increases and hence we do not have to worry about it vanishing
                     alpha = min(alpha, qSize/vanishRate)
 
-            phi = self.inverse_travel_time(e, theta)
+            phi = self.inverse_travel_time_old(e, theta)
             inflow_e = self.inflow_rate(e, phi)
             if Utilities.is_greater_tol(inflow_e, 0.0):
                 for path in self.pathCommodityDict:
@@ -301,7 +301,7 @@ class MultiFlow:
         tau = self.network[v][w]['transitTime']
         return t + tau + float(self.queue_size(e, t + tau)) / self.network[v][w]['outCapacity']
 
-    def inverse_travel_time(self, e, theta):
+    def inverse_travel_time_old(self, e, theta):
         """Finds phi s.t. T_e(phi) = theta"""
         # Check whether we dont have a queue by chance
         v, w = e
@@ -404,7 +404,7 @@ class MultiFlow:
 
                     #v, w = path[i], path[i+1]
                     #e = (v, w)
-                    breakPoints = breakPoints + [self.inverse_travel_time(e, bp) for bp in breakPoints]
+                    breakPoints = breakPoints + [self.inverse_travel_time_old(e, bp) for bp in breakPoints]
                     breakPoints = sorted(list(set([bp for bp in breakPoints if 0.0 <= bp < float('inf')])))
                 breakPoints = Utilities.get_unique_tol(L=breakPoints, tol=1e-5)
 
@@ -486,7 +486,7 @@ class MultiFlow:
                         Utilities.dictInSort(self.commodityOutflow[path][e], (theta, upper, 0.0))
                 else:
                     # We need to find phi s.t. T_e(phi) = theta
-                    phi = self.inverse_travel_time(e, theta)
+                    phi = self.inverse_travel_time_old(e, theta)
                     #print("Phi: ", phi)
                     #print("T_e(phi): ", self.travel_time(e, phi))
                     for path in self.commodityOutflow:
