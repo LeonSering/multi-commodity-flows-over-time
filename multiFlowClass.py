@@ -320,7 +320,7 @@ class MultiFlow:
                 for t_l, t_u in L:
                     if idx == 1:
                         # This is the outflow path, breakpoints hence differ
-                        t_l, t_u = t_l + tau, t_u + tau
+                        t_l, t_u = t_l - tau, t_u - tau
                     for bound in [t_l, t_u]:
                         if Utilities.is_between_tol(a, bound, b):
                             # We can make the interval smaller
@@ -333,6 +333,7 @@ class MultiFlow:
                                 T_a = z
 
         x = a + (b-a)*((theta - T_a)/(T_b-T_a))
+        assert(Utilities.is_eq_tol(theta, fc(x), tol=1e-8))
         return x
 
 
