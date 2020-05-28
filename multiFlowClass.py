@@ -13,7 +13,6 @@ import os
 import timeit
 import numpy as np
 
-
 class MultiFlow:
     """Manages the multi commodity flow"""
 
@@ -389,8 +388,6 @@ class MultiFlow:
             file.write("path path_travel_time\n")
             for path in self.pathCommodityDict:
                 breakPoints = [0.0]
-                if path == ('D', 'C', 'v2', 'B', 'v1'):
-                    print("debugging")
                 for i in reversed(range(len(path)-1)):
                     v, w = path[i], path[i+1]
                     e = (v, w)
@@ -409,7 +406,7 @@ class MultiFlow:
                     #e = (v, w)
                     breakPoints = breakPoints + [self.inverse_travel_time(e, bp) for bp in breakPoints]
                     breakPoints = sorted(list(set([bp for bp in breakPoints if 0.0 <= bp < float('inf')])))
-                breakPoints = Utilities.get_unique_tol(L=breakPoints, tol=1e-4)
+                breakPoints = Utilities.get_unique_tol(L=breakPoints, tol=1e-5)
 
                 s = ",".join([str(node) for node in path]) + " "
                 tupleList = [(x, self.path_travel_time(path, x)) for x in breakPoints]
@@ -458,8 +455,8 @@ class MultiFlow:
         idx = 1
         startTime = timeit.default_timer()
         while self.priority:
-            if idx == 587:
-                print("debug")
+            #if idx == 686:
+            #    print("debug")
             #print("Iteration ", idx)
             #print("PQ: ", self.priority)
             # Access first element of heap

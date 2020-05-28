@@ -69,7 +69,7 @@ class Utilities:
         return (Utilities.is_leq_tol(a, x) and Utilities.is_leq_tol(x, b))
 
     @staticmethod
-    def binary_search(interval, fc, y, tol=1e-3):
+    def binary_search(interval, fc, y, tol=1e-6):
         # Try to find x \in interval s.t. fc(x) = y
         # Called recursively
         t_l, t_u = interval
@@ -82,20 +82,19 @@ class Utilities:
                 M *= 2
             t_u = M
 
-        sep = 1
-        step_length = float(t_u - t_l)/sep
-        for k in range(sep):
-            l = t_l + k*step_length
-            u = t_l + (k+1)*step_length
-            if fc(l) <= y <= fc(u):
-                mid = float(u + l)/2
-                y_mid = fc(mid)
-                if Utilities.is_eq_tol(y, y_mid, tol=tol):
-                    return mid  # Solution found
-                elif y_mid < y:
-                    return Utilities.binary_search((mid, u), fc, y)
-                elif y_mid > y:
-                    return Utilities.binary_search((l, mid), fc, y)
+        mid = float(t_u+t_l)/2
+        y_mid = fc(mid)
+        if Utilities.is_eq_tol(y, y_mid, tol=tol):
+            return mid  # Solution found
+        elif t_u - t_l <= 1e-7:
+            # The interval is sufficiently small to interpolate linearly
+            T_l, T_u = fc(t_l), fc(t_u)
+            x = t_l + (t_u - t_l)*((y-T_l)/(T_u-T_l))
+            return x
+        elif y_mid < y:
+            return Utilities.binary_search((mid, t_u), fc, y)
+        elif y_mid > y:
+            return Utilities.binary_search((t_l, mid), fc, y)
 
     @staticmethod
     def dictInSortAdd(OD, newValues):
