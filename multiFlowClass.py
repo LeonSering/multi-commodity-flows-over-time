@@ -301,12 +301,12 @@ class MultiFlow:
         tau = self.network[v][w]['transitTime']
         return t + tau + float(self.queue_size(e, t + tau)) / self.network[v][w]['outCapacity']
 
-    def inverse_travel_time(self, e, theta, tol=1e-6):
+    def inverse_travel_time(self, e, theta):
         """Finds phi s.t. T_e(phi) = theta"""
         # Check whether we dont have a queue by chance
         v, w = e
         tau = self.network[v][w]['transitTime']
-        if Utilities.is_eq_tol(self.travel_time(e, theta-tau), theta, tol=tol):
+        if Utilities.is_eq_tol(self.travel_time(e, theta-tau), theta, tol=1e-7):
             return theta-tau
         # Find smallest time interval [a,b] s.t. in and outflow constant on [a,b] and theta \in [T_e(a), T_e(b)]
         # This allows us to linearly interpolate
@@ -316,8 +316,11 @@ class MultiFlow:
         for path in self.commodityInflow:
             if not self.edge_on_path(path, e):
                 continue
-            for L in [reversed(self.commodityInflow[path][e].keys()), reversed(self.commodityOutflow[path][e].keys())]:
+            for idx, L in enumerate([reversed(self.commodityInflow[path][e].keys()), reversed(self.commodityOutflow[path][e].keys())]):
                 for t_l, t_u in L:
+                    if idx == 1:
+                        # This is the outflow path, breakpoints hence differ
+                        t_l, t_u = t_l + tau, t_u + tau
                     for bound in [t_l, t_u]:
                         if Utilities.is_between_tol(a, bound, b):
                             # We can make the interval smaller
@@ -487,8 +490,8 @@ class MultiFlow:
         idx = 1
         startTime = timeit.default_timer()
         while self.priority:
-            if idx == 100:
-                print("debug")
+            #if idx == 100:
+            #    print("debug")
             #print("Iteration ", idx)
             #print("PQ: ", self.priority)
             # Access first element of heap
