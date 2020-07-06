@@ -136,9 +136,3 @@ dmypy.json
 .idea/modules.xml
 .idea/multi-commodity-flows-over-time.iml
 .idea/vcs.xml
-
-/examples/
-/tests/simple_merge/simple_merge-*
-/tests/debugging/
-/tests/matsim-paper/
-/tests/debugging2/
