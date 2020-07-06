@@ -8,10 +8,9 @@
 import heapq
 from collections import OrderedDict
 from utilitiesClass import Utilities
-import networkx as nx
 import os
 import timeit
-import numpy as np
+
 
 class MultiFlow:
     """Manages the multi commodity flow"""
@@ -21,14 +20,14 @@ class MultiFlow:
         :param network: Networkx Digraph instance
         """
         self.network = network.copy()
-        self.pathCommodityDict = dict() # Format: path:(startTime, endTime, rate) //type(path) == tuple
-        self.timeCommodityDict = dict() # Format: (startTime, endTime): (path, rate)
+        self.pathCommodityDict = dict()  # Format: path:(startTime, endTime, rate) //type(path) == tuple
+        self.timeCommodityDict = dict()  # Format: (startTime, endTime): (path, rate)
         self.priority = None
         self.commodityInflow = dict()
         self.commodityOutflow = dict()
         self.hasBeenActive = dict()
-        self.bIn = {edge:OrderedDict() for edge in self.network.edges} # b^+_e
-        self.bOut = {edge:OrderedDict() for edge in self.network.edges} # b^-_e
+        self.bIn = {edge: OrderedDict() for edge in self.network.edges}  # b^+_e
+        self.bOut = {edge: OrderedDict() for edge in self.network.edges}  # b^-_e
 
     def add_commodity(self, path, startTime, endTime, rate):
         """Adds commodity to the dictionaries"""
@@ -38,18 +37,17 @@ class MultiFlow:
     def edge_on_path(self, path, edge):
         """Check whether edge lies on path"""
         v, w = edge
-        for j in range(len(path)-1):
-            if (path[j] == v and path[j+1] == w):
+        for j in range(len(path) - 1):
+            if path[j] == v and path[j + 1] == w:
                 return True
         return False
 
     def ensure_general_model(self):
         """Ensures that the model is according to Skutella-Koch"""
         for e in self.network.edges:
-           v, w = e
-           self.network[v][w]['storage'] = float('inf')
-           self.network[v][w]['inCapacity'] = float('inf')
-
+            v, w = e
+            self.network[v][w]['storage'] = float('inf')
+            self.network[v][w]['inCapacity'] = float('inf')
 
     def validate_input(self):
         """Checks validity of input and returns error message if necessary"""
@@ -69,23 +67,22 @@ class MultiFlow:
 
         return 0
 
-
-    def init_values(self, t, startingEdges, isolatedNodes):
+    def init_values(self, t, startingEdges):
         """Init f, c, b up to initialTime t using the fact that we have known startingEdges and isolatedNodes"""
         minInf = -float('inf')
         maxInf = float('inf')
 
         # Init dictionaries
         for path in self.pathCommodityDict:
-            self.commodityInflow[path] = {edge:OrderedDict() for edge in self.network.edges}
-            self.commodityOutflow[path] = {edge:OrderedDict() for edge in self.network.edges}
-            self.hasBeenActive[path] = {edge:False for edge in self.network.edges}
+            self.commodityInflow[path] = {edge: OrderedDict() for edge in self.network.edges}
+            self.commodityOutflow[path] = {edge: OrderedDict() for edge in self.network.edges}
+            self.hasBeenActive[path] = {edge: False for edge in self.network.edges}
 
         for e in self.network.edges:
             v, w = e
             tau = self.network[v][w]['transitTime']
             if e not in startingEdges:
-                self.bIn[e][(minInf, t + tau)] = self.network[v][w]['inCapacity'] # Not full in this time frame
+                self.bIn[e][(minInf, t + tau)] = self.network[v][w]['inCapacity']  # Not full in this time frame
             else:
                 # Starting edges have infinite storage, are hence never full
                 self.bIn[e][(minInf, maxInf)] = self.network[v][w]['inCapacity']
@@ -100,16 +97,16 @@ class MultiFlow:
                     self.commodityInflow[path][e][(startTime, endTime)] = rate
                     self.commodityInflow[path][e][(endTime, maxInf)] = 0
 
-                    self.commodityOutflow[path][e][(minInf, t + tau)] = 0   # Here we can't know more than this
+                    self.commodityOutflow[path][e][(minInf, t + tau)] = 0  # Here we can't know more than this
                 elif self.edge_on_path(path, e):
                     # Edge is on path, but due to elif not the initial one
                     # Get the sum of transitTimes up to that edge
                     sTT, idx = 0, 0
-                    while idx < len(path)-1:
+                    while idx < len(path) - 1:
                         if path[idx] == v:
                             break
                         else:
-                            sTT += self.network[path[idx]][path[idx+1]]['transitTime']
+                            sTT += self.network[path[idx]][path[idx + 1]]['transitTime']
                             idx += 1
                     self.commodityInflow[path][e][(minInf, t + sTT)] = 0
                     self.commodityOutflow[path][e][(minInf, t + sTT + tau)] = 0
@@ -123,7 +120,7 @@ class MultiFlow:
         alpha = float('inf')
         for e in in_edges:
             # Compute alpha to get extension size
-            u, _ = e    # e = (u,v)
+            u, _ = e  # e = (u,v)
             tau = self.network[u][v]['transitTime']
             t = theta - tau
 
@@ -153,12 +150,12 @@ class MultiFlow:
             qSize = self.queue_size(e, theta)
             if Utilities.is_greater_tol(qSize, 0.0):
                 output = self.network[u][v]['outCapacity']  # Constant as long as there is queue
-                input = self.inflow_rate(e, theta - tau)    # Note that this is constant in this alpha phase
+                input = self.inflow_rate(e, theta - tau)  # Note that this is constant in this alpha phase
                 vanishRate = float(output - input)
                 if Utilities.is_greater_tol(vanishRate, 0.0):
                     # The queue decreases.
                     # Otherwise the queue increases and hence we do not have to worry about it vanishing
-                    alpha = min(alpha, qSize/vanishRate)
+                    alpha = min(alpha, qSize / vanishRate)
 
             phi = self.inverse_travel_time(e, theta)
             inflow_e = self.inflow_rate(e, phi)
@@ -171,29 +168,9 @@ class MultiFlow:
                             timeToVanish = self.queue_size(e, theta, commodityPath=path) / outflow_com
                             if Utilities.is_greater_tol(timeToVanish, 0.0):
                                 alpha = min(alpha, timeToVanish)
-
-            """
-            phi = self.inverse_travel_time(e, theta)
-            inflow_e = self.inflow_rate(e, phi)
-            if Utilities.is_greater_tol(inflow_e, 0.0):
-                for path in self.pathCommodityDict:
-                    if self.edge_on_path(path, e):
-                        qSize = self.queue_size(e, theta, commodityPath=path)
-                        if Utilities.is_greater_tol(qSize, 0.0):
-                            input = float(self.inflow_rate(e, phi, commodityPath=path))
-                            if Utilities.is_greater_tol(input, 0.0):
-                                inflow_ratio = input / inflow_e
-                                output = inflow_ratio * self.network[u][v]['outCapacity']
-                                vanishRate = float(output - input)
-                                alpha_const = self.time_to_inflow_change(e, phi)
-                                alpha = min(alpha, alpha_const)
-                                if Utilities.is_greater_tol(vanishRate, 0.0):
-                                    alpha = min(alpha, qSize/vanishRate)
-            """
-
         return alpha
 
-    def time_to_inflow_change(self, e, t, commodityPath = None):
+    def time_to_inflow_change(self, e, t, commodityPath=None):
         """Returns the maximum known alpha such that the inflow of e is constant on [t, t + alpha["""
         r = float('inf')
         paths = self.commodityInflow if not commodityPath else [commodityPath]
@@ -206,11 +183,12 @@ class MultiFlow:
                         break
         return r
 
-    def cum_inflow(self, v, w, t, commodityPath = None):
+    def cum_inflow(self, v, w, t, commodityPath=None):
         """
         :param v: tail of edge
         :param w: head of edge
         :param t: time
+        :param commodityPath: If specified, compute for one commodity only
         :return: F_(v,w)^+(t)
         """
         if Utilities.is_leq_tol(t, 0):
@@ -226,18 +204,19 @@ class MultiFlow:
                     continue
                 if Utilities.is_between_tol(t_l, t, t_u):
                     # This is the interval in which t lies
-                    s += (t-t_l) * inflowVal
+                    s += (t - t_l) * inflowVal
                 elif t > t_u:
-                    s += (t_u-t_l) * inflowVal
+                    s += (t_u - t_l) * inflowVal
                 elif t <= t_l:
                     break
         return s
 
-    def cum_outflow(self, v, w, t, commodityPath = None):
+    def cum_outflow(self, v, w, t, commodityPath=None):
         """
         :param v: tail of edge
         :param w: head of edge
         :param t: time
+        :param commodityPath: If specified, compute for one commodity only
         :return: F_(v,w)^-(t)
         """
         if Utilities.is_leq_tol(t, 0):
@@ -253,22 +232,23 @@ class MultiFlow:
                     continue
                 if Utilities.is_between_tol(t_l, t, t_u):
                     # This is the interval in which t lies
-                    s += (t-t_l) * outflowVal
+                    s += (t - t_l) * outflowVal
                 elif t > t_u:
-                    s += (t_u-t_l) * outflowVal
+                    s += (t_u - t_l) * outflowVal
                 elif t <= t_l:
                     break
         return s
 
-    def queue_size(self, e, t, commodityPath = None):
+    def queue_size(self, e, t, commodityPath=None):
         """Returns z_e(t). If commodyPath given, get just the values for that commodity"""
         v, w = e
         tau = self.network[v][w]['transitTime']
-        qSize = float(self.cum_inflow(v, w, t - tau, commodityPath=commodityPath) - self.cum_outflow(v, w, t, commodityPath=commodityPath))
-        assert(Utilities.is_geq_tol(qSize, 0.0))
+        qSize = float(self.cum_inflow(v, w, t - tau, commodityPath=commodityPath) - self.cum_outflow(v, w, t,
+                                                                                                     commodityPath=commodityPath))
+        assert (Utilities.is_geq_tol(qSize, 0.0))
         return qSize
 
-    def inflow_rate(self, e, t, commodityPath = None):
+    def inflow_rate(self, e, t, commodityPath=None):
         """Returns f^+_e(t)"""
         r = 0
         paths = self.commodityInflow if not commodityPath else [commodityPath]
@@ -276,7 +256,7 @@ class MultiFlow:
             for interval, flowRate in reversed(self.commodityInflow[path][e].items()):
                 t_l, t_u = interval
                 if Utilities.is_between_tol(t_l, t, t_u):
-                #if t_l <= t < t_u:
+                    # if t_l <= t < t_u:
                     r += flowRate
                     break
         return r
@@ -287,8 +267,8 @@ class MultiFlow:
             return t
 
         headArrivalTime = t
-        for i in range(len(path)-1):
-            v, w = path[i], path[i+1]
+        for i in range(len(path) - 1):
+            v, w = path[i], path[i + 1]
             e = (v, w)
             headArrivalTime = self.travel_time(e, headArrivalTime)
         return headArrivalTime - t
@@ -306,8 +286,8 @@ class MultiFlow:
         # Check whether we dont have a queue by chance
         v, w = e
         tau = self.network[v][w]['transitTime']
-        if Utilities.is_eq_tol(self.travel_time(e, theta-tau), theta, tol=1e-7):
-            return theta-tau
+        if Utilities.is_eq_tol(self.travel_time(e, theta - tau), theta, tol=1e-7):
+            return theta - tau
         # Find smallest time interval [a,b] s.t. in and outflow constant on [a,b] and theta \in [T_e(a), T_e(b)]
         # This allows us to linearly interpolate
         fc = lambda t: self.travel_time(e, t)
@@ -316,7 +296,8 @@ class MultiFlow:
         for path in self.commodityInflow:
             if not self.edge_on_path(path, e):
                 continue
-            for idx, L in enumerate([reversed(self.commodityInflow[path][e].keys()), reversed(self.commodityOutflow[path][e].keys())]):
+            for idx, L in enumerate(
+                    [reversed(self.commodityInflow[path][e].keys()), reversed(self.commodityOutflow[path][e].keys())]):
                 for t_l, t_u in L:
                     if idx == 1:
                         # This is the outflow path, breakpoints hence differ
@@ -332,18 +313,17 @@ class MultiFlow:
                                 a = bound
                                 T_a = z
 
-        x = a + (b-a)*((theta - T_a)/(T_b-T_a))
-        assert(Utilities.is_eq_tol(theta, fc(x), tol=1e-8))
+        x = a + (b - a) * ((theta - T_a) / (T_b - T_a))
+        assert (Utilities.is_eq_tol(theta, fc(x), tol=1e-8))
         return x
-
 
     def inverse_travel_time_old(self, e, theta):
         """Finds phi s.t. T_e(phi) = theta"""
         # Check whether we dont have a queue by chance
         v, w = e
         tau = self.network[v][w]['transitTime']
-        if Utilities.is_eq_tol(self.travel_time(e, theta-tau), theta, tol=1e-6):
-            return theta-tau
+        if Utilities.is_eq_tol(self.travel_time(e, theta - tau), theta, tol=1e-6):
+            return theta - tau
 
         for path in self.commodityInflow:
             if not self.edge_on_path(path, e):
@@ -373,15 +353,15 @@ class MultiFlow:
         - Cumulative inflow per commodity
         """
         pathTTFile = os.path.join(filePath, baseName + "-" + "path_travel_times.txt")
-        commodityCumFile = os.path.join(filePath,baseName + "-" + "cumulative_inflow_commodity_")
-        totalCumFile = os.path.join(filePath,baseName + "-" + "total_cumulative_inflow.txt")
+        commodityCumFile = os.path.join(filePath, baseName + "-" + "cumulative_inflow_commodity_")
+        totalCumFile = os.path.join(filePath, baseName + "-" + "total_cumulative_inflow.txt")
 
         # Cumulative inflow per commodity
         for idx, path in enumerate(self.pathCommodityDict):
             with open(commodityCumFile + str(idx) + ".txt", "w") as file:
                 file.write("arc cumulative_inflow_function\n")
-                for i in range(len(path)-1):
-                    v, w = path[i], path[i+1]
+                for i in range(len(path) - 1):
+                    v, w = path[i], path[i + 1]
                     e = (v, w)
                     s = str(v) + "," + str(w) + " "
                     breakPoints = [0]
@@ -424,8 +404,8 @@ class MultiFlow:
             file.write("path path_travel_time\n")
             for path in self.pathCommodityDict:
                 breakPoints = [0.0]
-                for i in reversed(range(len(path)-1)):
-                    v, w = path[i], path[i+1]
+                for i in reversed(range(len(path) - 1)):
+                    v, w = path[i], path[i + 1]
                     e = (v, w)
                     for xPath in self.pathCommodityDict:
                         if self.edge_on_path(xPath, e):
@@ -438,8 +418,6 @@ class MultiFlow:
                     breakPoints = sorted(list(set(breakPoints)))
                     breakPoints = [bp for bp in breakPoints if 0.0 <= bp < float('inf')]
 
-                    #v, w = path[i], path[i+1]
-                    #e = (v, w)
                     breakPoints = breakPoints + [self.inverse_travel_time(e, bp) for bp in breakPoints]
                     breakPoints = sorted(list(set([bp for bp in breakPoints if 0.0 <= bp < float('inf')])))
                 breakPoints = Utilities.get_unique_tol(L=breakPoints, tol=1e-5)
@@ -469,53 +447,34 @@ class MultiFlow:
         isoNodes = [v for v in self.network.nodes if self.network.in_degree(v) == 0]
 
         # Init f+, f-, c_v, b+_e, b-_e
-        self.init_values(initialTime, startingEdges, isoNodes)
+        self.init_values(initialTime, startingEdges)
 
         # Init priority heap (Note: isolated nodes not included)
-        # Structure: Each element of the heap is a 4 tuple (theta, hasOutgoingFull, topologicalDistance, nodeName)
-        # hasOutgoingFull (0 or 1) and topologicalDistance (0, 1, 2, ...) are tie breakers, lower values preferred
-        # hasOutgoingFull: integer value of boolean status whether node has outgoing edges that are currently full
+        # Structure: Each element of the heap is a 3 tuple (theta, topologicalDistance, nodeName)
+        # topologicalDistance (0, 1, 2, ...) is a tie breaker, lower values preferred
         # topologicalDistance: Topological ordering in reverse order (being far away top. is preferred)
-        # priority decreases with position in heap tuple, i.e. topologicalDistance is tie breaker for hasOutgoingFull
-        """
-        try:
-            topologicalSort = [node for node in reversed(list(nx.topological_sort(self.network))) if node not in isoNodes]
-            topologicalDistance = dict((node, idx) for idx, node in enumerate(topologicalSort))
-        except:
-        """
         topologicalDistance = dict((node, 0) for node in self.network.nodes if node not in isoNodes)
-        self.priority = [(initialTime, 0, topologicalDistance[node], node) for node in self.network.nodes if node not in isoNodes]
+        self.priority = [(initialTime, topologicalDistance[node], node) for node in self.network.nodes if
+                         node not in isoNodes]
         heapq.heapify(self.priority)
-
 
         idx = 1
         startTime = timeit.default_timer()
         while self.priority:
-            #if idx == 100:
-            #    print("debug")
-            #print("Iteration ", idx)
-            #print("PQ: ", self.priority)
             # Access first element of heap
-            theta, hasOutgoingFull, topDist, v = heapq.heappop(self.priority)
-            #print("v: ", v, " theta: ", theta)
-            #print("\nSTEP 1")
+            theta, topDist, v = heapq.heappop(self.priority)
             # STEP 1: Compute alpha extension size
             in_edges = list(self.network.in_edges(v))
             alpha = self.compute_alpha(theta, v, in_edges)
-            #print("Alpha: ", alpha)
 
-
-            #print("\nSTEP 2")
-            # STEP 3: Extend outflow of incoming edges
+            # STEP 2: Extend outflow of incoming edges
             for e in in_edges:
                 u, v = e
                 tau = self.network[u][v]['transitTime']
-                #print("Edge: ", e, " Tau: ", tau)
 
-
-                y = self.inflow_rate(e, theta - tau) if Utilities.is_eq_tol(self.queue_size(e, theta), 0.0) else float('inf')
+                y = self.inflow_rate(e, theta - tau) if Utilities.is_eq_tol(self.queue_size(e, theta), 0.0) else float(
+                    'inf')
                 outflow_e = min(y, self.network[u][v]['outCapacity'])
-                #print("Outflow_e: ", outflow_e)
                 if Utilities.is_eq_tol(0, outflow_e, tol=1e-6):
                     for path in self.commodityOutflow:
                         upper = float('inf') if self.hasBeenActive[path][e] else theta + alpha
@@ -523,8 +482,6 @@ class MultiFlow:
                 else:
                     # We need to find phi s.t. T_e(phi) = theta
                     phi = self.inverse_travel_time(e, theta)
-                    #print("Phi: ", phi)
-                    #print("T_e(phi): ", self.travel_time(e, phi))
                     for path in self.commodityOutflow:
                         if not self.edge_on_path(path, e):
                             continue
@@ -533,9 +490,10 @@ class MultiFlow:
                             upper = float('inf') if self.hasBeenActive[path][e] else theta + alpha
                             Utilities.dictInSort(self.commodityOutflow[path][e], (theta, upper, 0.0))
                         else:
-                            inflow_ratio = float(self.inflow_rate(e, phi, commodityPath=path))/inflow_e
+                            inflow_ratio = float(self.inflow_rate(e, phi, commodityPath=path)) / inflow_e
                             outflow_ext = inflow_ratio * outflow_e
-                            upper = float('inf') if self.hasBeenActive[path][e] and Utilities.is_eq_tol(outflow_ext, 0.0) else theta + alpha
+                            upper = float('inf') if self.hasBeenActive[path][e] and Utilities.is_eq_tol(outflow_ext,
+                                                                                                        0.0) else theta + alpha
                             Utilities.dictInSort(self.commodityOutflow[path][e], (theta, upper, outflow_ext))
                             if Utilities.is_greater_tol(outflow_ext, 0.0): self.hasBeenActive[path][e] = True
 
@@ -546,7 +504,7 @@ class MultiFlow:
                         idx_on_path = edges_on_path.index(e)
                     except ValueError:
                         continue
-                    if idx_on_path == len(edges_on_path)-1:
+                    if idx_on_path == len(edges_on_path) - 1:
                         # Last edge of commodity, nothing to do here
                         continue
                     else:
@@ -557,22 +515,21 @@ class MultiFlow:
 
                 # STEP 4: Update bOut
                 queue_in_future = self.queue_size(e, theta + alpha)
-                y_ext = self.inflow_rate(e, theta - tau) if Utilities.is_eq_tol(queue_in_future, 0.0, 1e-6) else float('inf')
+                y_ext = self.inflow_rate(e, theta - tau) if Utilities.is_eq_tol(queue_in_future, 0.0, 1e-6) else float(
+                    'inf')
                 bOut_ext = min(y_ext, self.network[u][v]['outCapacity'])
                 Utilities.dictInSort(self.bOut[e], (theta, theta + alpha, bOut_ext))
-                #print("\n")
             # STEP 5: Update priority queue
             theta_new = theta + alpha
             if theta_new < float('inf'):
-                hasOutgoingFull_new = 0 # TODO: This needs to be done!
-                heapq.heappush(self.priority, (theta_new, hasOutgoingFull_new, topDist, v))
+                heapq.heappush(self.priority, (theta_new, topDist, v))
 
             if idx % 20 == 1 or len(self.priority) == 0:
-                print("Iteration {0:d}: Node {1} | Theta {2:.2f} | Alpha {3:.2f} | {4:d} nodes in queue".format(idx, v, theta, alpha, len(self.priority)))
+                print("Iteration {0:d}: Node {1} | Theta {2:.2f} | Alpha {3:.2f} | {4:d} nodes in queue".format(idx, v,
+                                                                                                                theta,
+                                                                                                                alpha,
+                                                                                                                len(
+                                                                                                                    self.priority)))
             idx += 1
         endTime = timeit.default_timer()
-        print("Done after {0:d} iterations. Elapsed time: {1:.2f} seconds.".format(idx - 1, endTime-startTime))
-
-
-
-
+        print("Done after {0:d} iterations. Elapsed time: {1:.2f} seconds.".format(idx - 1, endTime - startTime))

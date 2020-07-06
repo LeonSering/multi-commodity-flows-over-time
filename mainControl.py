@@ -51,6 +51,7 @@ def read_files(networkFile, inflowFile):
 
     return mf
 
+
 # Parser configuration
 parser = ArgumentParser(description='Compute multi-commodity Flows over Time.')
 parser.add_argument("networkFile", help="Spillback network in .cg-Format.")
@@ -72,4 +73,4 @@ print("Generating output.\n")
 startTime = timeit.default_timer()
 mf.generate_output(os.path.dirname(os.path.abspath(networkFile)), baseName)
 endTime = timeit.default_timer()
-print("Finished generating output. Total elapsed: {0:.2f} seconds".format(endTime-startTime))
+print("Finished generating output. Total elapsed: {0:.2f} seconds".format(endTime - startTime))

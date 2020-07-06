@@ -64,9 +64,9 @@ class Utilities:
         return a - tol - b > 0
 
     @staticmethod
-    def is_between_tol(a, x, b,tol=TOL):
+    def is_between_tol(a, x, b):
         """Returns true if a <= x <= b w.r.t tol"""
-        return (Utilities.is_leq_tol(a, x) and Utilities.is_leq_tol(x, b))
+        return Utilities.is_leq_tol(a, x) and Utilities.is_leq_tol(x, b)
 
     @staticmethod
     def binary_search(interval, fc, y, tol=1e-6):
@@ -82,14 +82,14 @@ class Utilities:
                 M *= 2
             t_u = M
 
-        mid = float(t_u+t_l)/2
+        mid = float(t_u + t_l) / 2
         y_mid = fc(mid)
         if Utilities.is_eq_tol(y, y_mid, tol=tol):
             return mid  # Solution found
         elif t_u - t_l <= 1e-7:
             # The interval is sufficiently small to interpolate linearly
             T_l, T_u = fc(t_l), fc(t_u)
-            x = t_l + (t_u - t_l)*((y-T_l)/(T_u-T_l))
+            x = t_l + (t_u - t_l) * ((y - T_l) / (T_u - T_l))
             return x
         elif y_mid < y:
             return Utilities.binary_search((mid, t_u), fc, y)
@@ -216,7 +216,7 @@ class Utilities:
         # Find linear segments
         tupleList = finalList
         finalList = []
-        slope = lambda a, b: float(b[1]-a[1])/(b[0]-a[0])
+        slope = lambda a, b: float(b[1] - a[1]) / (b[0] - a[0])
 
         if len(tupleList) <= 2:
             first_idx = len(tupleList)
@@ -239,7 +239,7 @@ class Utilities:
             m_l = slope((x_0, y_0), (x_1, y_1))
 
             while last_idx <= len(tupleList) - 1 \
-                    and Utilities.is_eq_tol(m_l, slope((x_0, y_0), tupleList[last_idx]), tol=1e-5)\
+                    and Utilities.is_eq_tol(m_l, slope((x_0, y_0), tupleList[last_idx]), tol=1e-5) \
                     and tupleList[last_idx][0] < float('inf'):
                 last_idx += 1
 
@@ -249,13 +249,13 @@ class Utilities:
 
         prettyList = []
         for x, y in finalList:
-            if x < float('inf') and int(x) == x:
+            if float('inf') > x == int(x):
                 x = int(x)
-            #elif x < float('inf'):
+            # elif x < float('inf'):
             #    x = float(str("%.4f" % x))
             if int(y) == y:
                 y = int(y)
-            #else:
+            # else:
             #    y = float(str("%.4f" % y))
             prettyList.append((x, y))
         return prettyList
