@@ -12,7 +12,7 @@ from collections import OrderedDict
 # ======================================================================================================================
 
 
-TOL = 1e-3  # Tolerance
+TOL = 1e-6  # Tolerance
 
 
 class Utilities:

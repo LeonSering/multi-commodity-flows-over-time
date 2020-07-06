@@ -1,11 +1,7 @@
 # Multi-Commodity Flows over Time
+
 ## Requirements:
 [Python](https://python.org/) >= 3.7
-
-[numpy](https://numpy.org/) >= 1.17
-
-[networkx](https://networkx.github.io/) >= 2.4
-
 ## Usage:
     usage: mainControl.py [-h] networkFile inflowFile
     Compute multi-commodity Flows over Time.
@@ -18,6 +14,8 @@
       -h, --help   show this help message and exit
 
 ## Example:
+An example is provided in [/example](/example). The files simple_merge.cg and inflow.txt are input files,
+other files are the corresponding output files.
 
     python mainControl.py example/simple_merge.cg example/inflow.txt 
     Starting computation.
