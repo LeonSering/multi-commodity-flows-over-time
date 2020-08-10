@@ -1,19 +1,24 @@
-# Multi-Commodity Flows over Time
+# Multi-Commodity Flows Over Time
+Given network and commodity information the Multi-Commodity Flow Over Time Tool computes a feasible flow over time as described in [[1]](#references).
+This tool does not simulate any route-choice, as each commodity sends all its flow along a fixed path.
+The output flow over time is described by the cumulative inflow functions for each commodity. Additionally, the travel time functions are provided for each commodity.
 
-## Requirements:
+For creating the network the [NashFlowComputation tool](https://github.com/zimmer-m/NashFlowComputation) is needed.
+
+## Requirements
 [Python](https://python.org/) >= 3.7
-## Usage:
+## Usage
     usage: mainControl.py [-h] networkFile inflowFile
     Compute multi-commodity Flows over Time.
     
     positional arguments:
-      networkFile  Spillback network in .cg-Format.
+      networkFile  Network in .cg-Format.
       inflowFile   Inflow .txt File containing the commodities.
     
     optional arguments:
       -h, --help   show this help message and exit
 
-## Example:
+## Example
 An example is provided in [/example](/example). The files simple_merge.cg and inflow.txt are input files,
 other files are the corresponding output files.
 
@@ -28,3 +33,6 @@ other files are the corresponding output files.
     Generating output.
     
     Finished generating output. Total elapsed: 0.02 seconds
+
+## References
+[1] Theresa Ziemke, Leon Sering, Laura Vargas Koch, Max Zimmer, Kai Nagel and Martin Skutella. "Flows Over Time as Continuous Limits of Packet-Based Network Simulations." In: 23rd EURO Working Group on Transportation Meeting (EWGT), 2020. DOI: [TBD](https://svn.vsp.tu-berlin.de/repos/public-svn/publications/vspwp/2020/20-10/ZiemkeEtAl2020FlowsOverTimeAsLimitOfMATSim.pdf) 

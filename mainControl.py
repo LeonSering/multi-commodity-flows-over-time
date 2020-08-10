@@ -54,7 +54,7 @@ def read_files(networkFile, inflowFile):
 
 # Parser configuration
 parser = ArgumentParser(description='Compute multi-commodity Flows over Time.')
-parser.add_argument("networkFile", help="Spillback network in .cg-Format.")
+parser.add_argument("networkFile", help="Network in .cg-Format.")
 parser.add_argument("inflowFile", help="Inflow .txt File containing the commodities.")
 
 args = parser.parse_args()
